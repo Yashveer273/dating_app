@@ -1,12 +1,13 @@
 // --- Reusable Animated Custom Heart Widget ---
 import 'package:flutter/material.dart';
+import 'package:talk24loves/components/app_colors.dart';
 
 class AnimatedCustomHeart extends StatefulWidget {
   const AnimatedCustomHeart({
     super.key,
     this.size = 20.0,
-    this.borderColor = const Color(0xFFE11D48),
-    this.innerColor = const Color(0xFFFB7185),
+    this.borderColor = AppColors.primaryPink,
+    this.innerColor = AppColors.pinkLight,
     this.isBouncing = true,
     this.isPulsing = false,
   });

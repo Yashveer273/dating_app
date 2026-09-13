@@ -4,6 +4,7 @@ import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
 import 'package:talk24loves/screens/home_screen.dart';
 import 'package:talk24loves/screens/otp_screen.dart';
 import 'package:talk24loves/widgets/WaveDotLoader.dart';
@@ -13,10 +14,10 @@ class GenderSelectionScreen extends StatefulWidget {
   const GenderSelectionScreen({super.key});
 
   @override
-  State<GenderSelectionScreen> createState() => _GenderSelectionScreenState();
+  State createState() => _GenderSelectionScreenState();
 }
 
-class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
+class _GenderSelectionScreenState extends State {
   final themeController = Get.find<ThemeController>();
   String? selectedGender; // 'male' or 'female'
   bool _isLoading = false;
@@ -30,15 +31,16 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
   final LinearGradient pinkGradient = const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFF43F5E), Color(0xFFDB2777), Color(0xFFE11D48)],
+    colors: [AppColors.primaryPink, AppColors.pinkDark, AppColors.primaryPink],
   );
 
   bool get isDarkMode => themeController.isDarkMode;
 
-  Color get primaryText => isDarkMode ? Colors.white : AppColors.darkBgMid;
-  Color get secondaryText =>
-      isDarkMode ? const Color(0xFFA3A3A3) : const Color(0xFF666666);
+  Color get primaryText =>
+      isDarkMode ? AppColors.darkPrimaryText : AppColors.darkBgMid;
 
+  Color get secondaryText =>
+      isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
   void _onProceed() {
     if (selectedGender == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -54,7 +56,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
       // Proceed to next main app experience
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
+        MaterialPageRoute(builder: (context) => CallingAgentMainFile()),
       );
     });
   }
@@ -104,8 +106,8 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                       const AnimatedCustomHeart(
                         size: 28,
                         isPulsing: true,
-                        borderColor: Color(0xFFF43F5E),
-                        innerColor: Color(0xFFFB7185),
+                        borderColor: AppColors.primaryPink,
+                        innerColor: AppColors.pinkLight,
                       ),
                     ],
                   ),
@@ -132,18 +134,18 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: selectedGender == 'male'
-                                    ? const Color(0xFFF43F5E)
+                                    ? AppColors.primaryPink
                                     : (isDarkMode
-                                          ? const Color(0xFF333333)
+                                          ? AppColors.darkBorder
                                           : AppColors.lightBorder),
                                 width: selectedGender == 'male' ? 2 : 1,
                               ),
                               boxShadow: [
                                 if (selectedGender == 'male')
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFFF43F5E,
-                                    ).withOpacity(0.15),
+                                    color: AppColors.primaryPink.withOpacity(
+                                      0.15,
+                                    ),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -158,7 +160,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: selectedGender == 'male'
-                                          ? const Color(0xFFF43F5E)
+                                          ? AppColors.primaryPink
                                           : AppColors.primaryPink.withOpacity(
                                               0.3,
                                             ),
@@ -201,13 +203,13 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: selectedGender == 'male'
-                                        ? const Color(0xFFF43F5E)
+                                        ? AppColors.primaryPink
                                         : Colors.transparent,
                                     border: Border.all(
                                       color: selectedGender == 'male'
-                                          ? const Color(0xFFF43F5E)
+                                          ? AppColors.primaryPink
                                           : (isDarkMode
-                                                ? const Color(0xFF555555)
+                                                ? AppColors.darkBorder
                                                 : AppColors.lightBorder),
                                       width: 2,
                                     ),
@@ -241,18 +243,18 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: selectedGender == 'female'
-                                    ? const Color(0xFFF43F5E)
+                                    ? AppColors.primaryPink
                                     : (isDarkMode
-                                          ? const Color(0xFF333333)
+                                          ? AppColors.darkBorder
                                           : AppColors.lightBorder),
                                 width: selectedGender == 'female' ? 2 : 1,
                               ),
                               boxShadow: [
                                 if (selectedGender == 'female')
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFFF43F5E,
-                                    ).withOpacity(0.15),
+                                    color: AppColors.primaryPink.withOpacity(
+                                      0.15,
+                                    ),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -266,7 +268,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: const Color(0xFFF43F5E),
+                                      color: AppColors.primaryPink,
                                       width: 2,
                                     ),
                                     image: const DecorationImage(
@@ -296,9 +298,8 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                           vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(
-                                            0xFFF43F5E,
-                                          ).withOpacity(0.1),
+                                          color: AppColors.primaryPink
+                                              .withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(
                                             6,
                                           ),
@@ -306,7 +307,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                         child: const Text(
                                           'audio verification is needed',
                                           style: TextStyle(
-                                            color: Color(0xFFF43F5E),
+                                            color: AppColors.primaryPink,
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -321,13 +322,13 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: selectedGender == 'female'
-                                        ? const Color(0xFFF43F5E)
+                                        ? AppColors.primaryPink
                                         : Colors.transparent,
                                     border: Border.all(
                                       color: selectedGender == 'female'
-                                          ? const Color(0xFFF43F5E)
+                                          ? AppColors.primaryPink
                                           : (isDarkMode
-                                                ? const Color(0xFF555555)
+                                                ? AppColors.darkBorder
                                                 : AppColors.lightBorder),
                                       width: 2,
                                     ),
@@ -377,20 +378,19 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: selectedGender != null
-                                  ? pinkGradient
+                                  ? AppColors.pinkGradient
                                   : null,
                               color: selectedGender == null
                                   ? (isDarkMode
-                                        ? const Color(0xFF262626)
+                                        ? AppColors.darkCard
                                         : AppColors.lightBorder)
                                   : null,
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: selectedGender != null
                                   ? [
                                       BoxShadow(
-                                        color: const Color(
-                                          0xFFF43F5E,
-                                        ).withOpacity(0.35),
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.35),
                                         blurRadius: 10,
                                         offset: const Offset(0, 4),
                                       ),
@@ -419,8 +419,9 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                                         color: selectedGender != null
                                             ? Colors.white
                                             : (isDarkMode
-                                                  ? const Color(0xFF737373)
-                                                  : const Color(0xFF9CA3AF)),
+                                                  ? AppColors.darkSecondaryText
+                                                  : AppColors
+                                                        .lightSecondaryText),
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 0.3,

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
+import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
 import 'package:talk24loves/screens/genderSelection.dart';
 
@@ -191,12 +192,6 @@ class _OtpScreenState extends State<OtpScreen> {
   int _resendTimer = 30;
   Timer? _timer;
 
-  final LinearGradient pinkGradient = const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFF43F5E), Color(0xFFDB2777), Color(0xFFE11D48)],
-  );
-
   @override
   void initState() {
     super.initState();
@@ -231,10 +226,10 @@ class _OtpScreenState extends State<OtpScreen> {
 
   bool get isDarkMode => themeController.isDarkMode;
 
-  Color get primaryText => isDarkMode ? Colors.white : const Color(0xFF171717);
+  Color get primaryText =>
+      isDarkMode ? AppColors.darkPrimaryText : AppColors.lightPrimaryText;
   Color get secondaryText =>
-      isDarkMode ? const Color(0xFFA3A3A3) : const Color(0xFF666666);
-
+      isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
   void _onOtpChanged(String value, int index) {
     if (value.isNotEmpty && index < otpLength - 1) {
       _focusNodes[index + 1].requestFocus();
@@ -312,8 +307,8 @@ class _OtpScreenState extends State<OtpScreen> {
                           const AnimatedCustomHeart(
                             size: 13,
                             isPulsing: true,
-                            borderColor: Color(0xFFF43F5E),
-                            innerColor: Color(0xFFFB7185),
+                            borderColor: AppColors.primaryPink,
+                            innerColor: AppColors.pinkLight,
                           ),
                           const SizedBox(width: 5),
                           Text(
@@ -344,11 +339,11 @@ class _OtpScreenState extends State<OtpScreen> {
                               height: 72,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFFF43F5E).withOpacity(0.1),
+                                color: AppColors.primaryPink.withOpacity(0.1),
                                 border: Border.all(
-                                  color: const Color(
-                                    0xFFF43F5E,
-                                  ).withOpacity(0.25),
+                                  color: AppColors.primaryPink.withOpacity(
+                                    0.25,
+                                  ),
                                   width: 1.5,
                                 ),
                               ),
@@ -356,8 +351,8 @@ class _OtpScreenState extends State<OtpScreen> {
                             const AnimatedCustomHeart(
                               size: 34,
                               isPulsing: true,
-                              borderColor: Color(0xFFF43F5E),
-                              innerColor: Color(0xFFFB7185),
+                              borderColor: AppColors.primaryPink,
+                              innerColor: AppColors.pinkLight,
                             ),
                           ],
                         ),
@@ -373,7 +368,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Please enter the 4-digit security code sent to\n${widget.countryCode} ${widget.phoneNumber}',
+                          'Please enter the 4-digit security code sent to\n\({widget.countryCode}\){widget.phoneNumber}',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: secondaryText,
@@ -391,10 +386,12 @@ class _OtpScreenState extends State<OtpScreen> {
                               horizontal: 20,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withOpacity(0.15),
+                              color: AppColors.otpSuccessGreen.withOpacity(
+                                0.15,
+                              ),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: const Color(0xFF10B981),
+                                color: AppColors.otpSuccessGreen,
                                 width: 1.5,
                               ),
                             ),
@@ -403,14 +400,14 @@ class _OtpScreenState extends State<OtpScreen> {
                               children: [
                                 Icon(
                                   Icons.check_circle_rounded,
-                                  color: Color(0xFF10B981),
+                                  color: AppColors.otpSuccessGreen,
                                   size: 24,
                                 ),
                                 SizedBox(width: 10),
                                 Text(
                                   'Verification Successful!',
                                   style: TextStyle(
-                                    color: Color(0xFF10B981),
+                                    color: AppColors.otpSuccessGreen,
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -467,20 +464,20 @@ class _OtpScreenState extends State<OtpScreen> {
                                       counterText: '',
                                       filled: true,
                                       fillColor: isDarkMode
-                                          ? const Color(0xFF1a1a1a)
-                                          : Colors.white,
+                                          ? AppColors.otpFieldBgDark
+                                          : AppColors.lightCard,
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(14),
                                         borderSide: BorderSide(
                                           color: isDarkMode
-                                              ? const Color(0xFF404040)
-                                              : const Color(0xFFD1D5DB),
+                                              ? AppColors.darkBorder
+                                              : AppColors.lightBorder,
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(14),
                                         borderSide: const BorderSide(
-                                          color: Color(0xFFF43F5E),
+                                          color: AppColors.primaryPink,
                                           width: 1.8,
                                         ),
                                       ),
@@ -502,13 +499,13 @@ class _OtpScreenState extends State<OtpScreen> {
                             height: 48,
                             child: Container(
                               decoration: BoxDecoration(
-                                gradient: pinkGradient,
+                                gradient: AppColors.pinkGradient,
                                 borderRadius: BorderRadius.circular(14),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFFF43F5E,
-                                    ).withOpacity(0.3),
+                                    color: AppColors.primaryPink.withOpacity(
+                                      0.3,
+                                    ),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
@@ -575,7 +572,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   style: TextStyle(
                                     color: _resendTimer > 0
                                         ? secondaryText
-                                        : const Color(0xFFF43F5E),
+                                        : AppColors.primaryPink,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
                                   ),

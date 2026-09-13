@@ -1,6 +1,6 @@
-// --- Updated Footer Widget matching your requested design ---
 import 'package:flutter/material.dart';
 import 'package:talk24loves/components/AnimatedCustomHeart.dart';
+import 'package:talk24loves/components/app_colors.dart';
 
 class LoginFooter extends StatelessWidget {
   const LoginFooter({super.key, required this.isDarkMode});
@@ -86,8 +86,8 @@ class LoginFooter extends StatelessWidget {
               const AnimatedCustomHeart(
                 size: 13,
                 isPulsing: true,
-                borderColor: Color(0xFFF43F5E),
-                innerColor: Color(0xFFFB7185),
+                borderColor: AppColors.primaryPink,
+                innerColor: AppColors.pinkLight,
               ),
               const SizedBox(width: 6),
               Text(
@@ -102,8 +102,8 @@ class LoginFooter extends StatelessWidget {
               const AnimatedCustomHeart(
                 size: 13,
                 isBouncing: true,
-                borderColor: Color(0xFFEC4899),
-                innerColor: Color(0xFFF43F5E),
+                borderColor: AppColors.primaryPink,
+                innerColor: AppColors.pinkLight,
               ),
             ],
           ),

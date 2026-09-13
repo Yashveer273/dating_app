@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/AnimatedCustomHeart.dart';
 import 'package:talk24loves/components/app_background.dart';
+import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
 import 'package:talk24loves/widgets/WaveDotLoader.dart';
 
@@ -31,7 +32,7 @@ class Companion {
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  static const Map<String, int> _countryPhoneLength = {
+  static const Map _countryPhoneLength = {
     '+1': 10,
     '+44': 10,
     '+91': 10,
@@ -49,24 +50,18 @@ class LoginScreen extends StatefulWidget {
   }
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State {
   final TextEditingController phoneController = TextEditingController();
-  final ThemeController themeController = Get.find<ThemeController>();
+  final ThemeController themeController = Get.find();
   String countryCode = '+1';
   bool loading = false;
 
   bool get isDarkMode => themeController.isDarkMode;
 
-  final LinearGradient pinkGradient = const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFF43F5E), Color(0xFFDB2777), Color(0xFFE11D48)],
-  );
-
-  final List<Companion> companions = const [
+  final List companions = const [
     Companion(
       id: 1,
       name: 'Sophia',
@@ -99,9 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Color get primaryText => isDarkMode ? Colors.white : const Color(0xFF171717);
+  Color get primaryText =>
+      isDarkMode ? Colors.white : AppColors.lightPrimaryText;
   Color get secondaryText =>
-      isDarkMode ? const Color(0xFFA3A3A3) : const Color(0xFF666666);
+      isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
 
   int getRequiredPhoneLength(String code) {
     return LoginScreen.getRequiredPhoneLengthForCode(code);
@@ -123,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {});
   }
 
-  Future<void> handlePhoneSubmit() async {
+  Future handlePhoneSubmit() async {
     FocusScope.of(context).unfocus();
     final cleanedPhone = phoneController.text.trim();
     final digitsOnly = cleanedPhone.replaceAll(RegExp(r'\D'), '');
@@ -190,8 +186,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: AnimatedCustomHeart(
                                     size: 22,
                                     isBouncing: true,
-                                    borderColor: const Color(0xFFE11D48),
-                                    innerColor: const Color(0xFFE11D48),
+                                    borderColor: AppColors.pinkDark,
+                                    innerColor: AppColors.pinkDark,
                                   ),
                                 ),
                               ),
@@ -204,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(100),
                                     border: Border.all(
-                                      color: const Color(0xFFF43F5E),
+                                      color: AppColors.primaryPink,
                                       width: 2.5,
                                     ),
                                   ),
@@ -216,12 +212,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       errorBuilder:
                                           (context, error, stackTrace) {
                                             return Container(
-                                              color: const Color(
-                                                0xFFE11D48,
-                                              ).withOpacity(0.14),
+                                              color: AppColors.pinkDark
+                                                  .withOpacity(0.14),
                                               child: const Icon(
                                                 Icons.person_rounded,
-                                                color: Color(0xFFF43F5E),
+                                                color: AppColors.primaryPink,
                                                 size: 46,
                                               ),
                                             );
@@ -239,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(100),
                                     border: Border.all(
-                                      color: const Color(0xFFF43F5E),
+                                      color: AppColors.primaryPink,
                                       width: 2.5,
                                     ),
                                   ),
@@ -251,12 +246,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       errorBuilder:
                                           (context, error, stackTrace) {
                                             return Container(
-                                              color: const Color(
-                                                0xFFE11D48,
-                                              ).withOpacity(0.14),
+                                              color: AppColors.pinkDark
+                                                  .withOpacity(0.14),
                                               child: const Icon(
                                                 Icons.person_rounded,
-                                                color: Color(0xFFF43F5E),
+                                                color: AppColors.primaryPink,
                                                 size: 46,
                                               ),
                                             );
@@ -287,12 +281,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                         errorBuilder:
                                             (context, error, stackTrace) {
                                               return Container(
-                                                color: const Color(
-                                                  0xFFE11D48,
-                                                ).withOpacity(0.14),
+                                                color: AppColors.pinkDark
+                                                    .withOpacity(0.14),
                                                 child: const Icon(
                                                   Icons.person_rounded,
-                                                  color: Color(0xFFF43F5E),
+                                                  color: AppColors.primaryPink,
                                                   size: 32,
                                                 ),
                                               );
@@ -353,7 +346,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: 31,
                 height: 31,
                 decoration: BoxDecoration(
-                  gradient: pinkGradient,
+                  gradient: AppColors.pinkGradient,
                   borderRadius: BorderRadius.circular(11),
                 ),
                 child: const Icon(
@@ -364,7 +357,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(width: 7),
               ShaderMask(
-                shaderCallback: (bounds) => pinkGradient.createShader(bounds),
+                shaderCallback: (bounds) =>
+                    AppColors.pinkGradient.createShader(bounds),
                 child: const Text(
                   'AMOUR',
                   style: TextStyle(
@@ -395,8 +389,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                 size: 17,
                 color: isDarkMode
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF404040),
+                    ? AppColors.loginThemeIconDark
+                    : AppColors.loginThemeIconLight,
               ),
             ),
           ),
@@ -414,19 +408,19 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 46,
               padding: const EdgeInsets.symmetric(horizontal: 7),
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF171717) : Colors.white,
+                color: isDarkMode ? AppColors.darkBgMid : Colors.white,
                 border: Border.all(
                   color: isDarkMode
-                      ? const Color(0xFF404040)
-                      : const Color(0xFFD1D5DB),
+                      ? AppColors.darkBorder
+                      : AppColors.lightBorder,
                 ),
                 borderRadius: BorderRadius.circular(13),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: DropdownButton(
                   value: countryCode,
                   dropdownColor: isDarkMode
-                      ? const Color(0xFF171717)
+                      ? AppColors.darkBgMid
                       : Colors.white,
                   icon: Icon(
                     Icons.keyboard_arrow_down_rounded,
@@ -467,7 +461,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Container(
                 height: 46,
                 decoration: BoxDecoration(
-                  color: isDarkMode ? const Color(0xFF171717) : Colors.white,
+                  color: isDarkMode ? AppColors.darkBgMid : Colors.white,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: TextField(
@@ -491,7 +485,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     hintText: 'Mobile number',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF737373),
+                      color: AppColors.loginHintText,
                       fontSize: 12,
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 13),
@@ -499,14 +493,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(13),
                       borderSide: BorderSide(
                         color: isDarkMode
-                            ? const Color(0xFF404040)
-                            : const Color(0xFFD1D5DB),
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(13),
                       borderSide: const BorderSide(
-                        color: Color(0xFFF43F5E),
+                        color: AppColors.primaryPink,
                         width: 1.3,
                       ),
                     ),
@@ -533,11 +527,11 @@ class _LoginScreenState extends State<LoginScreen> {
               width: double.infinity,
               height: 48,
               decoration: BoxDecoration(
-                gradient: pinkGradient,
+                gradient: AppColors.pinkGradient,
                 borderRadius: BorderRadius.circular(13),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE11D48).withOpacity(.28),
+                    color: AppColors.pinkDark.withOpacity(.28),
                     blurRadius: 14,
                     offset: const Offset(0, 5),
                   ),

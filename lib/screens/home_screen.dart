@@ -7,7 +7,7 @@ import 'package:talk24loves/screens/phone_login_screen.dart';
 class HomeScreen extends StatelessWidget {
   HomeScreen({super.key});
 
-  final ThemeController themeController = Get.find<ThemeController>();
+  final ThemeController themeController = Get.find();
 
   @override
   Widget build(BuildContext context) {

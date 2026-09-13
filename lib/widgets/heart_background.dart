@@ -1,16 +1,15 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:talk24loves/components/app_colors.dart';
 
-// Navigator.of(context).popUntil((route) => route.isFirst);
 class HeartBackground extends StatefulWidget {
   const HeartBackground({super.key});
 
   @override
-  State<HeartBackground> createState() => _HeartBackgroundState();
+  State createState() => _HeartBackgroundState();
 }
 
-class _HeartBackgroundState extends State<HeartBackground>
-    with SingleTickerProviderStateMixin {
+class _HeartBackgroundState extends State with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -37,7 +36,7 @@ class _HeartBackgroundState extends State<HeartBackground>
           top: 40,
           left: 35,
           size: 14,
-          color: Colors.pinkAccent.withOpacity(0.5),
+          color: AppColors.primaryPink.withOpacity(0.5),
           offset: 0.0,
         ),
         _AnimatedHeart(
@@ -45,7 +44,7 @@ class _HeartBackgroundState extends State<HeartBackground>
           top: 25,
           right: 40,
           size: 18,
-          color: Colors.pink.withOpacity(0.6),
+          color: AppColors.primaryPink.withOpacity(0.6),
           offset: 1.0,
         ),
         _AnimatedHeart(
@@ -53,7 +52,7 @@ class _HeartBackgroundState extends State<HeartBackground>
           top: 130,
           left: 25,
           size: 12,
-          color: Colors.pink.shade300.withOpacity(0.4),
+          color: AppColors.pinkLight.withOpacity(0.4),
           offset: 2.0,
         ),
         _AnimatedHeart(
@@ -61,7 +60,7 @@ class _HeartBackgroundState extends State<HeartBackground>
           top: 145,
           right: 30,
           size: 14,
-          color: Colors.pinkAccent.withOpacity(0.5),
+          color: AppColors.primaryPink.withOpacity(0.5),
           offset: 0.5,
         ),
       ],

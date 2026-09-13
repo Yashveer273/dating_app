@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:talk24loves/components/app_colors.dart';
 
 class AppBackground extends StatelessWidget {
   const AppBackground({
@@ -22,15 +23,19 @@ class AppBackground extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF090909),
-                  Color(0xFF171717),
-                  Color(0xFF210C13),
+                  AppColors.darkBgTop,
+                  AppColors.darkBgMid,
+                  AppColors.darkBgBottom,
                 ],
               )
             : const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFF5F7), Colors.white, Color(0xFFE5E7EB)],
+                colors: [
+                  AppColors.lightBgTop,
+                  AppColors.lightBgMid,
+                  AppColors.lightBgBottom,
+                ],
               ),
       ),
       child: child,
