@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/AgentHistoryPage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/AgentHomePage.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/AgentMainController.dart';
+
+import 'package:talk24loves/screens/caling_agent_dashboard/LedgerPage.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';
 
 class CallingAgentMainFile extends StatelessWidget {
   CallingAgentMainFile({super.key});
 
   final AgentMainController controller = Get.put(AgentMainController());
-
-  final List _pages = [AgentHomePage(), AgentHomePage(), AgentHistoryPage()];
+  final ThemeController themeController = Get.find();
+  final List _pages = [AgentHomePage(), LedgerPage(), AgentHistoryPage()];
 
   @override
   Widget build(BuildContext context) {
-    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bool isDarkMode = themeController.isDarkMode;
     final navBg = isDarkMode ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDarkMode
         ? AppColors.darkBorder

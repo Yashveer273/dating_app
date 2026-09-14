@@ -5,11 +5,10 @@ import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
-import 'package:talk24loves/screens/home_screen.dart';
+
 import 'package:talk24loves/screens/otp_screen.dart';
 import 'package:talk24loves/widgets/WaveDotLoader.dart';
 
-// --- Rich Gender Selection Screen ---
 class GenderSelectionScreen extends StatefulWidget {
   const GenderSelectionScreen({super.key});
 

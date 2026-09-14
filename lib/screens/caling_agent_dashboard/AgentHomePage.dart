@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/AgentMainController.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';
 
 class AgentHomePage extends StatelessWidget {
   AgentHomePage({super.key});

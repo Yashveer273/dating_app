@@ -342,24 +342,27 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
                 Icons.timer_off_rounded,
                 primaryText,
               ),
-              ListTile(
-                leading: const Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppColors.primaryPink,
-                  size: 18,
-                ),
-                title: Text(
-                  'Calendar Date Picker...',
-                  style: TextStyle(
-                    color: primaryText,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppColors.primaryPink,
+                    size: 18,
                   ),
+                  title: Text(
+                    'Calendar Date Picker...',
+                    style: TextStyle(
+                      color: primaryText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickDateFilter(context);
+                  },
                 ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickDateFilter(context);
-                },
               ),
             ],
           ),
@@ -373,21 +376,24 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
     IconData icon,
     Color primaryText,
   ) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.primaryPink, size: 18),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: primaryText,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.primaryPink, size: 18),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: primaryText,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        onTap: () {
+          selectedFilter.value = title;
+          selectedDateFilter.value = null;
+          Get.back();
+        },
       ),
-      onTap: () {
-        selectedFilter.value = title;
-        selectedDateFilter.value = null;
-        Get.back();
-      },
     );
   }
 
