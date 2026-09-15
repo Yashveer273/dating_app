@@ -1,13 +1,23 @@
+// ==========================================
+// agent_home_page.dart
+// ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentProfilePage.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentProfileModel.dart';
 
-class AgentHomePage extends StatelessWidget {
-  AgentHomePage({super.key});
+class AgentHomePage extends StatefulWidget {
+  const AgentHomePage({super.key});
 
+  @override
+  State createState() => _AgentHomePageState();
+}
+
+class _AgentHomePageState extends State {
   final AgentMainController controller = Get.find();
   final ThemeController themeController = Get.find();
 
@@ -115,19 +125,49 @@ class AgentHomePage extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.pinkLight.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.access_time_rounded,
-                            color: AppColors.pinkLight,
-                            size: 20,
-                          ),
-                        ),
+                        const SizedBox(width: 15),
+
+                        // Profile Avatar using StatefulWidget safely
+                        (() {
+                          final profile = AgentProfileModel.current;
+                          final avatarUrl = profile?.avatar ?? '';
+
+                          return GestureDetector(
+                            onTap: () async {
+                              await Get.to(() => AgentProfilePage());
+                              setState(
+                                () {},
+                              ); // Refresh UI when coming back from profile page
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.primaryPink,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: AppColors.primaryPink
+                                    .withOpacity(0.15),
+                                backgroundImage: avatarUrl.isNotEmpty
+                                    ? NetworkImage(avatarUrl)
+                                    : null,
+                                onBackgroundImageError: avatarUrl.isNotEmpty
+                                    ? (_, __) {}
+                                    : null,
+                                child: avatarUrl.isEmpty
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 18,
+                                        color: AppColors.primaryPink,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          );
+                        })(),
                       ],
                     ),
                   ],
@@ -297,12 +337,11 @@ class AgentHomePage extends StatelessWidget {
 
                       const SizedBox(height: 18),
 
-                      // Dating Aesthetic Feature Grid: Premium Padded Border Video Call Card, Center Glow Live Avatar, Premium Padded Border Audio Call Card
+                      // Feature Cards Grid (Video/Live/Audio)
                       SizedBox(
                         height: 110,
                         child: Row(
                           children: [
-                            // Left Card: Video Call with Padded Outer Gradient Border & Floating Badge
                             Expanded(
                               flex: 3,
                               child: Transform.rotate(
@@ -319,14 +358,6 @@ class AgentHomePage extends StatelessWidget {
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.primaryPink
-                                            .withOpacity(0.18),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(15),
@@ -337,19 +368,6 @@ class AgentHomePage extends StatelessWidget {
                                           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
                                           fit: BoxFit.cover,
                                         ),
-                                        DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.black.withOpacity(0.8),
-                                              ],
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                            ),
-                                          ),
-                                        ),
-                                        // Top status indicator for dark/light contrast
                                         const Positioned(
                                           bottom: 8,
                                           left: 6,
@@ -382,93 +400,32 @@ class AgentHomePage extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 10),
-
-                            // Center: Circular Image with Glowing Outer Body Animation & Interactive Elements (Untouched)
                             Expanded(
                               flex: 2,
                               child: Center(
-                                child: TweenAnimationBuilder(
-                                  tween: Tween(begin: 0.3, end: 0.9),
-                                  duration: const Duration(milliseconds: 1800),
-                                  curve: Curves.easeInOut,
-                                  builder: (context, glowVal, child) {
-                                    return Container(
-                                      padding: const EdgeInsets.all(3.5),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            AppColors.primaryPink,
-                                            AppColors.pinkLight,
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppColors.primaryPink
-                                                .withOpacity(glowVal),
-                                            blurRadius: 14,
-                                            spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Stack(
-                                        alignment: Alignment.center,
-                                        children: [
-                                          const CircleAvatar(
-                                            radius: 36,
-                                            backgroundImage: NetworkImage(
-                                              'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=500&q=80',
-                                            ),
-                                          ),
-                                          Positioned(
-                                            bottom: 0,
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black87,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.favorite,
-                                                    color:
-                                                        AppColors.primaryPink,
-                                                    size: 9,
-                                                  ),
-                                                  SizedBox(width: 2),
-                                                  Text(
-                                                    'Live',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 8.5,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                  onEnd: () {},
+                                child: Container(
+                                  padding: const EdgeInsets.all(3.5),
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppColors.primaryPink,
+                                        AppColors.pinkLight,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: const CircleAvatar(
+                                    radius: 36,
+                                    backgroundImage: NetworkImage(
+                                      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=500&q=80',
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 10),
-
-                            // Right Card: Audio Call with Padded Outer Gradient Border & Floating Badge
                             Expanded(
                               flex: 3,
                               child: Transform.rotate(
@@ -485,14 +442,6 @@ class AgentHomePage extends StatelessWidget {
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.primaryPink
-                                            .withOpacity(0.18),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(15),
@@ -502,52 +451,6 @@ class AgentHomePage extends StatelessWidget {
                                         Image.network(
                                           'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
                                           fit: BoxFit.cover,
-                                        ),
-                                        DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.black.withOpacity(0.8),
-                                              ],
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 6,
-                                          left: 6,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 5,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black45,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: const [
-                                                Icon(
-                                                  Icons.mic,
-                                                  color: AppColors.pinkLight,
-                                                  size: 7,
-                                                ),
-                                                SizedBox(width: 3),
-                                                Text(
-                                                  'Clear',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 7.5,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
                                         ),
                                         const Positioned(
                                           bottom: 8,
@@ -586,7 +489,7 @@ class AgentHomePage extends StatelessWidget {
 
                       const SizedBox(height: 22),
 
-                      // Section Title for Tutorials & Guidelines Playlist
+                      // Masterclass Section
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -629,7 +532,7 @@ class AgentHomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
 
-                      // Multiple Horizontal Playlist Videos with Original Correct Training Images
+                      // Playlist Horizontal List
                       SizedBox(
                         height: 195,
                         child: ListView(

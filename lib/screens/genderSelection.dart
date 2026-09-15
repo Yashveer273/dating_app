@@ -1,12 +1,16 @@
+// ==========================================
+// GenderSelectionScreen.dart
+// ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
+import 'package:talk24loves/components/AnimatedCustomHeart.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
+import 'package:talk24loves/screens/userSection/UserMainFile.dart';
 
-import 'package:talk24loves/screens/otp_screen.dart';
 import 'package:talk24loves/widgets/WaveDotLoader.dart';
 
 class GenderSelectionScreen extends StatefulWidget {
@@ -17,7 +21,7 @@ class GenderSelectionScreen extends StatefulWidget {
 }
 
 class _GenderSelectionScreenState extends State {
-  final themeController = Get.find<ThemeController>();
+  final ThemeController themeController = Get.find();
   String? selectedGender; // 'male' or 'female'
   bool _isLoading = false;
 
@@ -40,6 +44,7 @@ class _GenderSelectionScreenState extends State {
 
   Color get secondaryText =>
       isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
+
   void _onProceed() {
     if (selectedGender == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,11 +57,19 @@ class _GenderSelectionScreenState extends State {
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      // Proceed to next main app experience
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => CallingAgentMainFile()),
-      );
+
+      // Conditional navigation based on selected gender
+      if (selectedGender == 'female') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => CallingAgentMainFile()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => UserMainFile()),
+        );
+      }
     });
   }
 
@@ -345,7 +358,7 @@ class _GenderSelectionScreenState extends State {
                           ),
                         ),
 
-                        // Generous spacing to fill vertical gap smoothly and push notice + proceed button nicely
+                        // Generous spacing to fill vertical gap smoothly
                         const SizedBox(height: 48),
 
                         // 3. Notice Text
