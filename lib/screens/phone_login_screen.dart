@@ -1,16 +1,16 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/AnimatedCustomHeart.dart';
+import 'package:talk24loves/components/DottedWaveLoader.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
-import 'package:talk24loves/widgets/WaveDotLoader.dart';
-
-import 'otp_screen.dart' hide AnimatedCustomHeart;
+import 'package:talk24loves/screens/otp_screen.dart';
 
 class Companion {
   final int id;
@@ -28,7 +28,6 @@ class Companion {
   });
 }
 
-// --- Login Screen ---
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -50,18 +49,20 @@ class LoginScreen extends StatefulWidget {
   }
 
   @override
-  State createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State {
+class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController phoneController = TextEditingController();
-  final ThemeController themeController = Get.find();
-  String countryCode = '+1';
+  final ThemeController themeController = Get.find<ThemeController>();
+  final UserApiService _authApiService = UserApiService();
+
+  String countryCode = '+91';
   bool loading = false;
 
   bool get isDarkMode => themeController.isDarkMode;
 
-  final List companions = const [
+  final List<Companion> companions = const [
     Companion(
       id: 1,
       name: 'Sophia',
@@ -119,7 +120,7 @@ class _LoginScreenState extends State {
     setState(() {});
   }
 
-  Future handlePhoneSubmit() async {
+  Future<void> handlePhoneSubmit() async {
     FocusScope.of(context).unfocus();
     final cleanedPhone = phoneController.text.trim();
     final digitsOnly = cleanedPhone.replaceAll(RegExp(r'\D'), '');
@@ -137,20 +138,34 @@ class _LoginScreenState extends State {
     }
 
     setState(() => loading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+    final fullPhoneNumber = "$countryCode$digitsOnly";
+
+    // Call backend Send OTP API using AuthApiService
+    final response = await _authApiService.sendOtp(fullPhoneNumber);
+
     if (!mounted) return;
     setState(() => loading = false);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => OtpScreen(
-          phoneNumber: digitsOnly,
-          countryCode: countryCode,
-          isDarkMode: isDarkMode,
+    if (response != null && response['success'] == true) {
+      final verificationId = response['verificationId'] ?? '';
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpScreen(
+            phoneNumber: digitsOnly,
+            countryCode: countryCode,
+            verificationId: verificationId,
+            isDarkMode: isDarkMode,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      final errorMessage =
+          response?['message'] ?? 'Failed to send OTP. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -417,7 +432,7 @@ class _LoginScreenState extends State {
                 borderRadius: BorderRadius.circular(13),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton(
+                child: DropdownButton<String>(
                   value: countryCode,
                   dropdownColor: isDarkMode
                       ? AppColors.darkBgMid
@@ -539,7 +554,7 @@ class _LoginScreenState extends State {
               ),
               child: Center(
                 child: loading
-                    ? const WaveDotLoader()
+                    ? const DottedWaveLoader()
                     : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

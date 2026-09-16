@@ -1,41 +1,37 @@
-// ==========================================
-// GenderSelectionScreen.dart
-// ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/AnimatedCustomHeart.dart';
+import 'package:talk24loves/components/DottedWaveLoader.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/components/app_footer.dart';
+
 import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
+
 import 'package:talk24loves/screens/userSection/UserMainFile.dart';
 
-import 'package:talk24loves/widgets/WaveDotLoader.dart';
-
 class GenderSelectionScreen extends StatefulWidget {
-  const GenderSelectionScreen({super.key});
+  const GenderSelectionScreen({super.key, required this.phoneNumber});
+
+  final String phoneNumber;
 
   @override
-  State createState() => _GenderSelectionScreenState();
+  State<GenderSelectionScreen> createState() => _GenderSelectionScreenState();
 }
 
-class _GenderSelectionScreenState extends State {
-  final ThemeController themeController = Get.find();
+class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
+  final ThemeController themeController = Get.find<ThemeController>();
+  final UserApiService _authApiService = UserApiService();
+
   String? selectedGender; // 'male' or 'female'
   bool _isLoading = false;
 
-  // Placeholder avatar image URLs from the internet
+  // Placeholder avatar image URLs
   static const String maleAvatarUrl =
       'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80';
   static const String femaleAvatarUrl =
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80';
-
-  final LinearGradient pinkGradient = const LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [AppColors.primaryPink, AppColors.pinkDark, AppColors.primaryPink],
-  );
 
   bool get isDarkMode => themeController.isDarkMode;
 
@@ -45,21 +41,34 @@ class _GenderSelectionScreenState extends State {
   Color get secondaryText =>
       isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
 
-  void _onProceed() {
+  Future<void> _onProceed() async {
     if (selectedGender == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your gender to continue')),
+        const SnackBar(
+          content: Text('Please select your gender to continue'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
 
-      // Conditional navigation based on selected gender
-      if (selectedGender == 'female') {
+    // Call backend select-gender API
+    final response = await _authApiService.selectGender(
+      phoneNumber: widget.phoneNumber,
+      gender: selectedGender!,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (response != null && response['success'] == true) {
+      final String role =
+          response['role'] ?? (selectedGender == 'female' ? 'agent' : 'user');
+
+      // Navigate based on assigned role or selected gender
+      if (role == 'agent' || selectedGender == 'female') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => CallingAgentMainFile()),
@@ -70,7 +79,13 @@ class _GenderSelectionScreenState extends State {
           MaterialPageRoute(builder: (context) => UserMainFile()),
         );
       }
-    });
+    } else {
+      final errorMessage =
+          response?['message'] ?? 'Gender selection failed. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -83,7 +98,7 @@ class _GenderSelectionScreenState extends State {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Header Section with "your" (small, grey) & "Gender" (black/bold/large)
+                // Top Header Section
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -125,7 +140,7 @@ class _GenderSelectionScreenState extends State {
                   ),
                 ),
 
-                // Center Column Selection Area with generous spacing and expanded area
+                // Center Column Selection Area
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -133,7 +148,7 @@ class _GenderSelectionScreenState extends State {
                       children: [
                         const SizedBox(height: 16),
 
-                        // 1. Male Box with Internet Avatar
+                        // 1. Male Option Box
                         GestureDetector(
                           onTap: () => setState(() => selectedGender = 'male'),
                           child: AnimatedContainer(
@@ -241,7 +256,7 @@ class _GenderSelectionScreenState extends State {
 
                         const SizedBox(height: 18),
 
-                        // 2. Female Box with Circular Internet Avatar & Audio Verification Subtitle
+                        // 2. Female Option Box
                         GestureDetector(
                           onTap: () =>
                               setState(() => selectedGender = 'female'),
@@ -358,7 +373,6 @@ class _GenderSelectionScreenState extends State {
                           ),
                         ),
 
-                        // Generous spacing to fill vertical gap smoothly
                         const SizedBox(height: 48),
 
                         // 3. Notice Text
@@ -383,7 +397,6 @@ class _GenderSelectionScreenState extends State {
                         ),
                         const SizedBox(height: 24),
 
-                        // 4. Proceed Button
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -402,7 +415,7 @@ class _GenderSelectionScreenState extends State {
                                   ? [
                                       BoxShadow(
                                         color: AppColors.primaryPink
-                                            .withOpacity(0.35),
+                                            .withOpacity(0.3),
                                         blurRadius: 10,
                                         offset: const Offset(0, 4),
                                       ),
@@ -410,7 +423,7 @@ class _GenderSelectionScreenState extends State {
                                   : [],
                             ),
                             child: ElevatedButton(
-                              onPressed: _isLoading || selectedGender == null
+                              onPressed: (_isLoading || selectedGender == null)
                                   ? null
                                   : _onProceed,
                               style: ElevatedButton.styleFrom(
@@ -421,20 +434,17 @@ class _GenderSelectionScreenState extends State {
                                 ),
                               ),
                               child: _isLoading
-                                  ? const WaveDotLoader(
+                                  ? const DottedWaveLoader(
                                       color: Colors.white,
                                       size: 6.0,
                                     )
                                   : Text(
-                                      'Proceed',
+                                      'Continue to App',
                                       style: TextStyle(
                                         color: selectedGender != null
                                             ? Colors.white
-                                            : (isDarkMode
-                                                  ? AppColors.darkSecondaryText
-                                                  : AppColors
-                                                        .lightSecondaryText),
-                                        fontSize: 15,
+                                            : secondaryText,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 0.3,
                                       ),
@@ -442,14 +452,11 @@ class _GenderSelectionScreenState extends State {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 30),
                       ],
                     ),
                   ),
                 ),
-
-                // Footer at the bottom
-                LoginFooter(isDarkMode: isDarkMode),
               ],
             ),
           ),

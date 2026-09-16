@@ -3,178 +3,29 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
+import 'package:talk24loves/components/AnimatedCustomHeart.dart';
+import 'package:talk24loves/components/DottedWaveLoader.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_footer.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
 import 'package:talk24loves/screens/genderSelection.dart';
+import 'package:talk24loves/screens/userSection/UserMainFile.dart';
 
-// --- Reusable Animated Custom Heart Widget ---
-class AnimatedCustomHeart extends StatefulWidget {
-  const AnimatedCustomHeart({
-    super.key,
-    this.size = 20.0,
-    this.borderColor = const Color(0xFFE11D48),
-    this.innerColor = const Color(0xFFFB7185),
-    this.isBouncing = true,
-    this.isPulsing = false,
-  });
-
-  final double size;
-  final Color borderColor;
-  final Color innerColor;
-  final bool isBouncing;
-  final bool isPulsing;
-
-  @override
-  State<AnimatedCustomHeart> createState() => _AnimatedCustomHeartState();
-}
-
-class _AnimatedCustomHeartState extends State<AnimatedCustomHeart>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-
-    if (widget.isBouncing) {
-      _animation = Tween<double>(
-        begin: 0.0,
-        end: -5.0,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    } else if (widget.isPulsing) {
-      _animation = Tween<double>(
-        begin: 1.0,
-        end: 1.15,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    } else {
-      _animation = AlwaysStoppedAnimation(0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Widget heartStack = Stack(
-      alignment: Alignment.center,
-      children: [
-        Icon(
-          Icons.favorite_rounded,
-          size: widget.size,
-          color: widget.borderColor,
-        ),
-        Icon(
-          Icons.favorite_rounded,
-          size: widget.size * 0.75,
-          color: widget.innerColor,
-        ),
-      ],
-    );
-
-    if (widget.isBouncing) {
-      return AnimatedBuilder(
-        animation: _animation,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(0, _animation.value),
-            child: child,
-          );
-        },
-        child: heartStack,
-      );
-    } else if (widget.isPulsing) {
-      return ScaleTransition(scale: _animation, child: heartStack);
-    }
-
-    return heartStack;
-  }
-}
-
-// --- Professional Dotted Wave Loader Widget ---
-class DottedWaveLoader extends StatefulWidget {
-  const DottedWaveLoader({
-    super.key,
-    this.color = Colors.white,
-    this.size = 6.0,
-  });
-  final Color color;
-  final double size;
-
-  @override
-  State<DottedWaveLoader> createState() => _DottedWaveLoaderState();
-}
-
-class _DottedWaveLoaderState extends State<DottedWaveLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (index) {
-            final double wave =
-                (sin((_controller.value * 2 * 3.14159) - (index * 0.8)) + 1) /
-                2;
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              height: widget.size + (wave * 6),
-              width: widget.size,
-              decoration: BoxDecoration(
-                color: widget.color.withOpacity(0.4 + (wave * 0.6)),
-                borderRadius: BorderRadius.circular(widget.size),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-}
-
-// --- Professional Footer matching your specifications ---
-
-// --- Professional 4-Digit OTP Screen with Manual Verify Trigger, Dotted Wave Loader & Custom Footer ---
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
     super.key,
     required this.phoneNumber,
     required this.countryCode,
+    required this.verificationId,
     required this.isDarkMode,
   });
 
   final String phoneNumber;
   final String countryCode;
+  final String verificationId;
   final bool isDarkMode;
 
   @override
@@ -184,6 +35,8 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   static const int otpLength = 4;
   final ThemeController themeController = Get.find<ThemeController>();
+  final UserApiService _authApiService = UserApiService();
+
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
 
@@ -191,13 +44,22 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _isSuccess = false;
   int _resendTimer = 30;
   Timer? _timer;
+  late String _currentVerificationId;
 
   @override
   void initState() {
     super.initState();
+    _currentVerificationId = widget.verificationId;
     _controllers = List.generate(otpLength, (_) => TextEditingController());
     _focusNodes = List.generate(otpLength, (_) => FocusNode());
     startResendTimer();
+
+    // Automatically focus the first OTP digit input field upon entering screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_focusNodes.isNotEmpty) {
+        _focusNodes[0].requestFocus();
+      }
+    });
   }
 
   void startResendTimer() {
@@ -230,9 +92,17 @@ class _OtpScreenState extends State<OtpScreen> {
       isDarkMode ? AppColors.darkPrimaryText : AppColors.lightPrimaryText;
   Color get secondaryText =>
       isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
+
   void _onOtpChanged(String value, int index) {
     if (value.isNotEmpty && index < otpLength - 1) {
       _focusNodes[index + 1].requestFocus();
+    } else if (value.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
+
+    String fullOtp = _controllers.map((c) => c.text).join();
+    if (fullOtp.length == otpLength && !_isLoading) {
+      _verifyOtp();
     }
   }
 
@@ -250,20 +120,52 @@ class _OtpScreenState extends State<OtpScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(milliseconds: 1200));
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _isSuccess = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => GenderSelectionScreen()),
+    final fullPhoneNumber = "${widget.countryCode}${widget.phoneNumber}";
+    final response = await _authApiService.verifyAndRegister(
+      phoneNumber: fullPhoneNumber,
+      verificationId: _currentVerificationId,
+      otp: fullOtp,
     );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (response != null && response['success'] == true) {
+      setState(() => _isSuccess = true);
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+
+      final bool isNewUser = response['isNewUser'] ?? false;
+      final bool isGenderSelected = response['isGenderSelected'] ?? false;
+      final String role = response['role'] ?? '';
+
+      if (isNewUser && !isGenderSelected) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                GenderSelectionScreen(phoneNumber: fullPhoneNumber),
+          ),
+        );
+      } else {
+        if (role == 'agent') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => CallingAgentMainFile()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => UserMainFile()),
+          );
+        }
+      }
+    } else {
+      final errorMessage = response?['message'] ?? 'Invalid verification code';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -275,7 +177,6 @@ class _OtpScreenState extends State<OtpScreen> {
           child: SafeArea(
             child: Column(
               children: [
-                // Top Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
@@ -368,7 +269,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Please enter the 4-digit security code sent to\n\({widget.countryCode}\){widget.phoneNumber}',
+                          'Please enter the 4-digit security code sent to\n${widget.countryCode}${widget.phoneNumber}',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: secondaryText,
@@ -377,8 +278,6 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                         ),
                         const SizedBox(height: 28),
-
-                        // Success Message Banner or 4 OTP Input Boxes
                         if (_isSuccess)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -452,6 +351,14 @@ class _OtpScreenState extends State<OtpScreen> {
                                     keyboardType: TextInputType.number,
                                     textAlign: TextAlign.center,
                                     maxLength: 1,
+                                    textInputAction: index == otpLength - 1
+                                        ? TextInputAction.done
+                                        : TextInputAction.next,
+                                    onSubmitted: (_) {
+                                      if (index == otpLength - 1) {
+                                        _verifyOtp();
+                                      }
+                                    },
                                     style: TextStyle(
                                       color: primaryText,
                                       fontSize: 20,
@@ -489,10 +396,7 @@ class _OtpScreenState extends State<OtpScreen> {
                               );
                             }),
                           ),
-
                         const SizedBox(height: 28),
-
-                        // Verify Button with Dotted Wave Loader Animation
                         if (!_isSuccess)
                           SizedBox(
                             width: double.infinity,
@@ -537,7 +441,6 @@ class _OtpScreenState extends State<OtpScreen> {
                               ),
                             ),
                           ),
-
                         const SizedBox(height: 20),
                         if (!_isSuccess)
                           Row(
@@ -552,8 +455,19 @@ class _OtpScreenState extends State<OtpScreen> {
                               ),
                               GestureDetector(
                                 onTap: _resendTimer == 0
-                                    ? () {
+                                    ? () async {
                                         startResendTimer();
+                                        final res = await _authApiService.sendOtp(
+                                          "${widget.countryCode}${widget.phoneNumber}",
+                                        );
+                                        if (res != null &&
+                                            res['verificationId'] != null) {
+                                          setState(() {
+                                            _currentVerificationId =
+                                                res['verificationId'];
+                                          });
+                                        }
+                                        if (!mounted) return;
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
@@ -584,7 +498,6 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                   ),
                 ),
-                // Professional Footer attached neatly at the bottom
                 LoginFooter(isDarkMode: isDarkMode),
               ],
             ),
