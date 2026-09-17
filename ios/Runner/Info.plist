@@ -24,9 +24,14 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+<string>This app requires camera access to connect video calls with users.</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>This app requires microphone access for clear audio during calls.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
+	
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>

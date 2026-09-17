@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/screens/temtest/role_selection_view.dart';
 import 'package:talk24loves/screens/userSection/model/AgentModel.dart';
 
 void showCallSelectionSheet({
@@ -90,7 +91,12 @@ void showCallSelectionSheet({
                       GestureDetector(
                         onTap: agent.isAudioAvailable
                             ? () {
-                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RoleSelectionView(),
+                                  ),
+                                );
                                 Get.snackbar(
                                   'Audio Call',
                                   'Connecting audio call with ${agent.displayName}...',
@@ -191,7 +197,12 @@ void showCallSelectionSheet({
                       GestureDetector(
                         onTap: agent.isVideoAvailable
                             ? () {
-                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RoleSelectionView(),
+                                  ),
+                                );
                                 Get.snackbar(
                                   'Video Call',
                                   'Connecting video call with ${agent.displayName}...',

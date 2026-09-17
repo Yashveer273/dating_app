@@ -1,11 +1,15 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/firebase_options.dart';
 import 'package:talk24loves/screens/phone_login_screen.dart';
 
-void main() {
+void main() async {
   Get.put(ThemeController());
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 

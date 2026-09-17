@@ -1,0 +1,155 @@
+{
+  "project_info": {
+    "project_number": "560801349976",
+    "firebase_url": "https://grozar-default-rtdb.firebaseio.com",
+    "project_id": "grozar",
+    "storage_bucket": "grozar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:560801349976:android:63450e89f01397b480652d",
+        "android_client_info": {
+          "package_name": "com.bus.bushlynk"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6OQebKf57g9RzpRoS25xsA0VBCyfMjJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "560801349976-1te6g8lu8tj4q2csice6a9hsj1snhlca.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bus.bushlynk"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:560801349976:android:1f69c7a14eee4a5080652d",
+        "android_client_info": {
+          "package_name": "com.datingapp.talk24loves"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6OQebKf57g9RzpRoS25xsA0VBCyfMjJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "560801349976-1te6g8lu8tj4q2csice6a9hsj1snhlca.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bus.bushlynk"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:560801349976:android:c5c4881c4149d44c80652d",
+        "android_client_info": {
+          "package_name": "com.grozar.market"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6OQebKf57g9RzpRoS25xsA0VBCyfMjJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "560801349976-1te6g8lu8tj4q2csice6a9hsj1snhlca.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bus.bushlynk"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:560801349976:android:b345f3f3a194171a80652d",
+        "android_client_info": {
+          "package_name": "com.grozar.vendor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6OQebKf57g9RzpRoS25xsA0VBCyfMjJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "560801349976-btcv6tdo6a86t67v0nbc8jh91dsv1bri.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "560801349976-1te6g8lu8tj4q2csice6a9hsj1snhlca.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bus.bushlynk"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
