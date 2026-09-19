@@ -1,32 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import 'dart:async';
 
-class IncomingCallItem {
+class IncomingCallItemModel {
   final String id;
   final String name;
   final String avatarUrl;
   final bool isVideoCall;
-  final bool isBrandNew;
+  RxBool isBrandNew;
 
   // Reactive fields
   late final RxInt remainingSeconds;
   late final RxString timeDisplay;
   Timer? _countdownTimer;
 
-  // Callback when time expires (auto-dismiss/decline)
   VoidCallback? onTimeout;
 
-  IncomingCallItem({
+  IncomingCallItemModel({
     required this.id,
     required this.name,
     required this.avatarUrl,
     required this.isVideoCall,
-    this.isBrandNew = false,
-    int initialDurationSeconds = 30, // 30 seconds to answer before it expires
+    bool isBrandNew = false,
+    int initialDurationSeconds = 90, // यहाँ 90 सेकंड सेट कर दिया गया है
     this.onTimeout,
-  }) {
+  }) : isBrandNew = isBrandNew.obs {
     remainingSeconds = initialDurationSeconds.obs;
     timeDisplay = '${initialDurationSeconds}s left to accept'.obs;
     _startTimer();
@@ -51,7 +49,7 @@ class IncomingCallItem {
   }
 }
 
-class HistoryCallItem {
+class HistoryCallItemModel {
   final String id;
   final String name;
   final String avatarUrl;
@@ -64,7 +62,7 @@ class HistoryCallItem {
   final IconData badgeIcon;
   final DateTime timestamp;
 
-  HistoryCallItem({
+  HistoryCallItemModel({
     required this.id,
     required this.name,
     required this.avatarUrl,

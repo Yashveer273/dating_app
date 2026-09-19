@@ -3,11 +3,12 @@ import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/CallAgentController.dart';
-
-import 'package:talk24loves/screens/caling_agent_dashboard/component/history_call_card.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/incoming_call_card.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/models/call_item_models.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/CallAgentController.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/call_item_models.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/history_call_card.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/incoming_call_card.dart';
+import 'package:talk24loves/screens/temtest/call_api_service.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/shared_call_screen.dart';
 
 class AgentHistoryPage extends StatefulWidget {
   const AgentHistoryPage({super.key});
@@ -31,50 +32,7 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
   late final AnimationController _blinkController;
   late final AnimationController _emptyStatePulseController;
 
-  final RxList historyList = [
-    HistoryCallItem(
-      id: 'h1',
-      name: 'Jessica Taylor',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=500&q=80',
-      callType: 'Video Call',
-      callTypeIcon: Icons.videocam_rounded,
-      statusText: 'Successfully Attended',
-      statusColor: Colors.greenAccent,
-      statusBg: Colors.greenAccent.withOpacity(0.12),
-      timeDetail: 'Duration: 04:32 mins • Today, 03:45 PM',
-      badgeIcon: Icons.check_circle_rounded,
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    HistoryCallItem(
-      id: 'h2',
-      name: 'Amanda Seyfried',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=500&q=80',
-      callType: 'Audio Call',
-      callTypeIcon: Icons.phone_in_talk_rounded,
-      statusText: 'Missed Call (-00:45s overdue)',
-      statusColor: Colors.orangeAccent,
-      statusBg: Colors.orangeAccent.withOpacity(0.12),
-      timeDetail: 'Not attended by agent • Today, 01:12 PM',
-      badgeIcon: Icons.timer_off_rounded,
-      timestamp: DateTime.now().subtract(const Duration(hours: 4)),
-    ),
-    HistoryCallItem(
-      id: 'h3',
-      name: 'Chloe Grace',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=500&q=80',
-      callType: 'Video Call',
-      callTypeIcon: Icons.videocam_rounded,
-      statusText: 'Cancelled by Customer',
-      statusColor: Colors.redAccent,
-      statusBg: Colors.redAccent.withOpacity(0.12),
-      timeDetail: 'Customer hung up before pick-up • Yesterday',
-      badgeIcon: Icons.call_missed_outgoing_rounded,
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-  ].obs;
+  final RxList historyList = [].obs;
 
   @override
   void initState() {
@@ -94,50 +52,7 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
-    // Initial dummy data to demonstrate live queue. Clear this list to test the empty graphic state.
-    _addInitialCall(
-      id: '1',
-      name: 'Amanda Seyfried',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=500&q=80',
-      isVideoCall: false,
-      initialDurationSeconds: 30,
-    );
-    _addInitialCall(
-      id: '2',
-      name: 'Sophia Martinez',
-      avatarUrl:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80',
-      isVideoCall: true,
-      initialDurationSeconds: 40,
-    );
-  }
-
-  void _addInitialCall({
-    required String id,
-    required String name,
-    required String avatarUrl,
-    required bool isVideoCall,
-    required int initialDurationSeconds,
-  }) {
-    final newItem = IncomingCallItem(
-      id: id,
-      name: name,
-      avatarUrl: avatarUrl,
-      isVideoCall: isVideoCall,
-      initialDurationSeconds: initialDurationSeconds,
-      isBrandNew: false,
-      onTimeout: () {
-        final callItem = controller.incomingQueue.firstWhereOrNull(
-          (item) => item.id == id,
-        );
-        if (callItem != null) {
-          _removeItemSmoothly(callItem, false, isTimeout: true);
-        }
-        controller.handleCallTimeout(id);
-      },
-    );
-    controller.incomingQueue.add(newItem);
+    // यहाँ से _addInitialCall वाले डमी डेटा पूरी तरह हटा दिए गए हैं।
   }
 
   @override
@@ -153,7 +68,7 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
   }
 
   List get _filteredHistoryList {
-    var list = historyList.where((item) {
+    var list = controller.historyList.where((item) {
       if (selectedFilter.value == 'Video Calls Only' &&
           item.callType != 'Video Call')
         return false;
@@ -206,74 +121,36 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
   }
 
   void _removeItemSmoothly(
-    IncomingCallItem call,
+    IncomingCallItemModel call,
     bool isAccepted, {
     bool isTimeout = false,
-  }) {
-    final index = controller.incomingQueue.indexWhere(
-      (item) => item.id == call.id,
-    );
-    if (index == -1) return;
+  }) async {
+    if (isTimeout) {
+      controller.handleCallTimeout(call.id);
+    } else if (isAccepted) {
+      // 🟢 1. पहले कंट्रोलर के जरिए Firebase पर 'accepted' अपडेट और क्यू से सफाई करें
+      bool isSuccess = await controller.acceptCall(call.id);
 
-    controller.incomingQueue.removeAt(index);
-    call.dispose();
-
-    (_animatedListKey.currentState as AnimatedListState?)?.removeItem(
-      index,
-      (context, animation) => SizeTransition(
-        sizeFactor: animation,
-        axis: Axis.vertical,
-        child: FadeTransition(
-          opacity: animation,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: IncomingCallCard(
-              call: call,
-              isTopPriority: false,
-              isDarkMode: themeController.isDarkMode,
-              cardBg: themeController.isDarkMode
-                  ? AppColors.darkCard
-                  : AppColors.lightCard,
-              onAccept: () {},
-              onDelete: () {},
+      // 2. जब Firebase का काम सफल हो जाए, तब Navigator.push के जरिए आगे बढ़ें (रिप्लेस नहीं करना है)
+      if (isSuccess && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SharedCallScreen(
+              roomId: call.id,
+              callType: call.isVideoCall ? 'video' : 'audio',
+              agentId: CallApiService.staticAgentId,
+              isUserCaller: false,
             ),
           ),
-        ),
-      ),
-      duration: const Duration(milliseconds: 400),
-    );
+        );
+      }
+    } else {
+      // 🔴 3. अगर डिलीट/रिजेक्ट किया है
+      await controller.declineCall(call.id);
+    }
 
-    final String statusTxt = isTimeout
-        ? 'Missed Call (Timed out)'
-        : (isAccepted ? 'Successfully Attended' : 'Declined / Cut by Agent');
-
-    final newHistoryItem = HistoryCallItem(
-      id: 'h_${DateTime.now().millisecondsSinceEpoch}',
-      name: call.name,
-      avatarUrl: call.avatarUrl,
-      callType: call.isVideoCall ? 'Video Call' : 'Audio Call',
-      callTypeIcon: call.isVideoCall
-          ? Icons.videocam_rounded
-          : Icons.phone_in_talk_rounded,
-      statusText: statusTxt,
-      statusColor: isTimeout
-          ? Colors.orangeAccent
-          : (isAccepted ? Colors.greenAccent : Colors.redAccent),
-      statusBg:
-          (isTimeout
-                  ? Colors.orangeAccent
-                  : (isAccepted ? Colors.greenAccent : Colors.redAccent))
-              .withOpacity(0.12),
-      timeDetail: isTimeout
-          ? 'Expired automatically • Just now'
-          : 'Duration: 02:15 mins • Just now',
-      badgeIcon: isTimeout
-          ? Icons.timer_off_rounded
-          : (isAccepted ? Icons.check_circle_rounded : Icons.call_end_rounded),
-      timestamp: DateTime.now(),
-    );
-
-    historyList.insert(0, newHistoryItem);
+    // एनिमेटेड लिस्ट से आइटम हटाने का UI एनीमेशन लॉजिक यहाँ रहेगा...
   }
 
   void _showFilterBottomSheet(
@@ -734,7 +611,6 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
                                             ),
                                           ),
                                           const SizedBox(height: 10),
-                                          // Internal grey status container replacing the progress bar
                                           Container(
                                             width: double.infinity,
                                             padding: const EdgeInsets.symmetric(
@@ -873,6 +749,7 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
                                       cardBg: cardBg,
                                       gradientController: _gradientController,
                                       blinkController: _blinkController,
+                                      // ✅ यहाँ लाइव कार्ड के लिए एक्सेप्ट और डिलीट बटन कनेक्ट कर दिए गए हैं
                                       onAccept: () =>
                                           _removeItemSmoothly(call, true),
                                       onDelete: () =>

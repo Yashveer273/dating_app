@@ -93,13 +93,30 @@ class _OtpScreenState extends State<OtpScreen> {
   Color get secondaryText =>
       isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
 
+  // यहाँ हमने कॉपी-पेस्ट और ऑटो-फिल का स्मार्ट लॉजिक हैंडल किया है
   void _onOtpChanged(String value, int index) {
-    if (value.isNotEmpty && index < otpLength - 1) {
-      _focusNodes[index + 1].requestFocus();
-    } else if (value.isEmpty && index > 0) {
-      _focusNodes[index - 1].requestFocus();
+    // यदि यूजर ने एक साथ पूरा OTP (या 2-4 डिजिट) पेस्ट कर दिया है
+    if (value.length > 1) {
+      // केवल डिजिट्स निकालकर साफ़ करें
+      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+      for (int i = 0; i < otpLength; i++) {
+        if (i < digits.length) {
+          _controllers[i].text = digits[i];
+        }
+      }
+      // सही बॉक्स पर फोकस सेट करें
+      int nextIndex = digits.length < otpLength ? digits.length : otpLength - 1;
+      _focusNodes[nextIndex].requestFocus();
+    } else {
+      // सामान्य सिंगल डिजिट टाइपिंग लॉजिक
+      if (value.isNotEmpty && index < otpLength - 1) {
+        _focusNodes[index + 1].requestFocus();
+      } else if (value.isEmpty && index > 0) {
+        _focusNodes[index - 1].requestFocus();
+      }
     }
 
+    // चेक करें कि क्या पूरा OTP भर गया है
     String fullOtp = _controllers.map((c) => c.text).join();
     if (fullOtp.length == otpLength && !_isLoading) {
       _verifyOtp();
@@ -350,7 +367,8 @@ class _OtpScreenState extends State<OtpScreen> {
                                     focusNode: _focusNodes[index],
                                     keyboardType: TextInputType.number,
                                     textAlign: TextAlign.center,
-                                    maxLength: 1,
+                                    maxLength:
+                                        4, // 4 ताकि कॉपी-पेस्ट के वक्त टेक्स्टफील्ड लंबी स्ट्रिंग ले सके
                                     textInputAction: index == otpLength - 1
                                         ? TextInputAction.done
                                         : TextInputAction.next,

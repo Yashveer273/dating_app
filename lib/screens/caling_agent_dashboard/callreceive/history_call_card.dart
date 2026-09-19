@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/models/call_item_models.dart';
-// Adjust import path as needed
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/call_item_models.dart';
 
 class HistoryCallCard extends StatelessWidget {
-  final HistoryCallItem historyItem;
+  final HistoryCallItemModel historyItem;
   final Color cardBg;
   final Color borderColor;
   final Color primaryText;

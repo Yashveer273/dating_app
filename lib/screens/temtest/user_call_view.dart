@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import './call_api_service.dart';
-import 'shared_call_screen.dart';
+import '../caling_agent_dashboard/callreceive/shared_call_screen.dart';
 
 class UserCallView extends StatefulWidget {
   const UserCallView({Key? key}) : super(key: key);
@@ -31,6 +31,8 @@ class _UserCallViewState extends State<UserCallView> {
   ];
 
   Future<void> _startCall(String agentId, String agentName, String type) async {
+    if (agentId.isEmpty) return;
+
     setState(() {
       _callType = type;
       _agentName = agentName;
@@ -40,19 +42,28 @@ class _UserCallViewState extends State<UserCallView> {
 
     _startLocalCountdown();
 
+    // बैकएंड एपीआई के माध्यम से सुरक्षित रूप से कॉल रिक्वेस्ट भेजना
     final result = await CallApiService.requestCall(
       callType: type,
       customAgentId: agentId,
       customUserName: "John Doe",
+      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb",
     );
+
+    if (!mounted) return;
 
     if (result['success'] == true) {
       setState(() {
-        _roomId = result['roomId'];
-        _agentName = result['agentName'] ?? agentName;
+        _roomId = result['callId']?.toString() ?? result['roomId']?.toString();
+        _agentName = result['agentName']?.toString() ?? agentName;
       });
 
-      // --- ROBUST FIRESTORE LISTENER ---
+      if (_roomId == null || _roomId!.isEmpty) {
+        _cleanupAndReset("Invalid room generated from server.");
+        return;
+      }
+
+      // केवल उसी पर्टिकुलर रूम आईडी पर लिसन करना ताकि दूसरे डेटा से कोई क्रॉस-कनेक्शन न हो
       _roomSubscription = FirebaseFirestore.instance
           .collection('rooms')
           .doc(_roomId)
@@ -63,12 +74,11 @@ class _UserCallViewState extends State<UserCallView> {
               return;
             }
 
-            final data = snapshot.data() as Map<String, dynamic>?;
-            if (data == null) return;
+            final data = snapshot.data();
+            if (data is! Map<String, dynamic>) return;
 
-            final status = data['status'];
+            final status = data['status']?.toString();
 
-            // Agar agent ne call accept kar li hai
             if (status == 'accepted') {
               _stopTimers();
               if (!mounted) return;
@@ -84,9 +94,9 @@ class _UserCallViewState extends State<UserCallView> {
                   ),
                 ),
               ).then((_) => _resetState());
-            }
-            // Agar call reject ya end ho gayi hai
-            else if (status == 'ended' || status == 'rejected') {
+            } else if (status == 'ended' ||
+                status == 'rejected' ||
+                status == 'timeout') {
               _cleanupAndReset("Call ended.");
             }
           });
@@ -95,10 +105,11 @@ class _UserCallViewState extends State<UserCallView> {
       setState(() {
         _isRinging = false;
       });
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Failed to connect call'),
+          content: Text(
+            result['message']?.toString() ?? 'Failed to connect call',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -109,9 +120,11 @@ class _UserCallViewState extends State<UserCallView> {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
+        if (mounted) {
+          setState(() {
+            _remainingSeconds--;
+          });
+        }
       } else {
         _stopTimers();
         _handleTimeout();
@@ -120,7 +133,22 @@ class _UserCallViewState extends State<UserCallView> {
   }
 
   void _handleTimeout() async {
-    if (_roomId != null) {
+    if (_roomId != null && _roomId!.isNotEmpty) {
+      try {
+        // 1. Firestore में रूम स्टेटस अपडेट करें ताकि एजेंट साइड तुरंत UI हट जाए
+        await FirebaseFirestore.instance
+            .collection('rooms')
+            .doc(_roomId!)
+            .update({
+              'status': 'ended',
+              'endedBy': 'user_timeout',
+              'disconnectedAt': FieldValue.serverTimestamp(),
+            });
+      } catch (e) {
+        debugPrint("Error updating room on timeout: $e");
+      }
+
+      // 2. Backend API call
       await CallApiService.endCall(
         roomId: _roomId!,
         customAgentId: CallApiService.staticAgentId,
@@ -131,7 +159,22 @@ class _UserCallViewState extends State<UserCallView> {
 
   void _cancelCall() async {
     _stopTimers();
-    if (_roomId != null) {
+    if (_roomId != null && _roomId!.isNotEmpty) {
+      try {
+        // 1. Firestore में रूम स्टेटस अपडेट करें ताकि एजेंट साइड तुरंत UI हट जाए
+        await FirebaseFirestore.instance
+            .collection('rooms')
+            .doc(_roomId!)
+            .update({
+              'status': 'ended',
+              'endedBy': 'user_cancelled',
+              'disconnectedAt': FieldValue.serverTimestamp(),
+            });
+      } catch (e) {
+        debugPrint("Error updating room on cancel: $e");
+      }
+
+      // 2. Backend API call
       await CallApiService.endCall(
         roomId: _roomId!,
         customAgentId: CallApiService.staticAgentId,
@@ -152,7 +195,6 @@ class _UserCallViewState extends State<UserCallView> {
       _isRinging = false;
       _roomId = null;
     });
-    // Agar ringing screen par hain toh wapas list screen par pop karo
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }
@@ -216,7 +258,10 @@ class _UserCallViewState extends State<UserCallView> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Select Agent to Call")),
+      appBar: AppBar(
+        title: const Text("Select Agent to Call"),
+        backgroundColor: Colors.indigo,
+      ),
       body: ListView.builder(
         itemCount: _agentsList.length,
         itemBuilder: (context, index) {
@@ -247,7 +292,7 @@ class _UserCallViewState extends State<UserCallView> {
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.videocam, color: Colors.blue),
-                    tooltip: "Start Video Call",
+                    tooltip: "The Video Call",
                     onPressed: () =>
                         _startCall(agent["agentId"]!, agent["name"]!, 'video'),
                   ),

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/AgentHistoryPage.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/AgentHistoryPage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/AgentHomePage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/LedgerPage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';

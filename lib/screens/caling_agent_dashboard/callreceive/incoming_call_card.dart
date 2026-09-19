@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/models/call_item_models.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/call_item_models.dart';
 
 class IncomingCallCard extends StatelessWidget {
-  final IncomingCallItem call;
+  final IncomingCallItemModel call;
   final bool isTopPriority;
   final bool isDarkMode;
   final Color cardBg;
@@ -43,10 +43,10 @@ class IncomingCallCard extends StatelessWidget {
                   : const Color(0xFFF0F8FF)),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: call.isBrandNew
+          color: call.isBrandNew.value
               ? Colors.greenAccent
               : callAccentColor.withOpacity(0.4),
-          width: call.isBrandNew ? 2.0 : 1.2,
+          width: call.isBrandNew.value ? 2.0 : 1.2,
         ),
       ),
       child: Column(
@@ -60,26 +60,28 @@ class IncomingCallCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: call.isBrandNew
+                      color: call.isBrandNew.value
                           ? Colors.greenAccent
                           : callAccentColor,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      call.isBrandNew
+                      call.isBrandNew.value
                           ? Icons.fiber_new_rounded
                           : Icons.ring_volume_rounded,
-                      color: call.isBrandNew ? Colors.black : Colors.white,
+                      color: call.isBrandNew.value
+                          ? Colors.black
+                          : Colors.white,
                       size: 13,
                     ),
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    call.isBrandNew
+                    call.isBrandNew.value
                         ? 'New Incoming Request'
                         : 'Incoming Call Ringing',
                     style: TextStyle(
-                      color: call.isBrandNew
+                      color: call.isBrandNew.value
                           ? Colors.greenAccent
                           : callAccentColor,
                       fontSize: 11.5,
@@ -130,7 +132,7 @@ class IncomingCallCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: call.isBrandNew
+                    color: call.isBrandNew.value
                         ? Colors.greenAccent
                         : callAccentColor,
                     width: 1.8,
