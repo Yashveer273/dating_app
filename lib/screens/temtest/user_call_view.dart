@@ -151,7 +151,9 @@ class _UserCallViewState extends State<UserCallView> {
       // 2. Backend API call
       await CallApiService.endCall(
         roomId: _roomId!,
-        customAgentId: CallApiService.staticAgentId,
+        agentId: CallApiService.staticAgentId,
+        endedBy: "user_timeout",
+        disconnectReason: "user_timeout",
       );
     }
     _cleanupAndReset("Call timed out. No response from agent.");
@@ -177,7 +179,9 @@ class _UserCallViewState extends State<UserCallView> {
       // 2. Backend API call
       await CallApiService.endCall(
         roomId: _roomId!,
-        customAgentId: CallApiService.staticAgentId,
+        agentId: CallApiService.staticAgentId,
+        endedBy: "user_cancelled",
+        disconnectReason: "user_cancelled",
       );
     }
     _cleanupAndReset("Call cancelled.");

@@ -1,3 +1,5 @@
+// views/caling_agent_dashboard/callreceive/SharedCallController.dart
+
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +26,7 @@ class SharedCallController {
   final VoidCallback onExit;
 
   bool isMuted = false;
-  bool isRemoteMuted = false; // 🟢 Remote user ka mute status
+  bool isRemoteMuted = false;
   bool isCameraOff = false;
   bool isRemoteCameraOff = false;
   bool isLocalFullScreen = false;
@@ -38,7 +40,6 @@ class SharedCallController {
   bool isCallEnded = false;
   bool isActionInProgress = false;
 
-  // Reactions list
   final List<FloatingReactionIcon> floatingReactions = [];
   Timestamp? lastProcessedReactionTime;
 
@@ -61,7 +62,6 @@ class SharedCallController {
     _initNotificationsAndShowOngoing();
   }
 
-  // --- Notification Setup ---
   Future<void> _initNotificationsAndShowOngoing() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -158,10 +158,10 @@ class SharedCallController {
     isSpeakerOn = !isSpeakerOn;
     onStateUpdated();
     await _showPersistentCallNotification();
-    debugPrint("Speaker status changed: $isSpeakerOn");
   }
 
-  // 🟢 Mute Toggle with Firebase Sync
+  // views/caling_agent_dashboard/callreceive/SharedCallController.dart
+
   Future<void> toggleMute() async {
     isMuted = !isMuted;
     onStateUpdated();
@@ -172,8 +172,11 @@ class SharedCallController {
       await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
         updateField: isMuted,
       });
+      debugPrint(
+        "✅ Mute state successfully updated to Firestore: $updateField = $isMuted",
+      );
     } catch (e) {
-      debugPrint("Error updating mute state: $e");
+      debugPrint("❌ Error updating mute state: $e");
     }
   }
 
@@ -191,7 +194,6 @@ class SharedCallController {
     }
   }
 
-  // --- Real-time Room Updates Listener ---
   void _listenToRoomUpdates() {
     roomSubscription = FirebaseFirestore.instance
         .collection('rooms')
@@ -215,7 +217,6 @@ class SharedCallController {
             return;
           }
 
-          // Remote Mute & Camera Sync
           isRemoteMuted = isUserCaller
               ? (data['agentMuted'] ?? false)
               : (data['userMuted'] ?? false);
@@ -224,7 +225,6 @@ class SharedCallController {
               ? (data['agentCameraOff'] ?? false)
               : (data['userCameraOff'] ?? false);
 
-          // 🟢 Real-time Emoji Reactions Sync
           final reactionData = data['latestReaction'] as Map<String, dynamic>?;
           if (reactionData != null) {
             final timestamp = reactionData['timestamp'] as Timestamp?;
@@ -248,7 +248,6 @@ class SharedCallController {
         });
   }
 
-  // 🟢 Send Reaction Method
   Future<void> sendReaction(String iconKey) async {
     _triggerLocalReactionAnimation(iconKey);
 
@@ -302,7 +301,6 @@ class SharedCallController {
     });
   }
 
-  // 🟢 Hangup Call (Direct Firebase & State Cleanup without external custom API dependency issues)
   Future<void> hangupCall() async {
     if (isCallEnded || isActionInProgress) return;
     isActionInProgress = true;
@@ -317,16 +315,18 @@ class SharedCallController {
     isCallEnded = true;
 
     try {
+      // 1. Mark room as ended
       await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
         'status': 'ended',
         'endedBy': endedBy,
         'disconnectedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      await FirebaseFirestore.instance.collection('agents').doc(agentId).set({
-        'isBusy': false,
-        'currentRoomId': null,
-      }, SetOptions(merge: true));
+      // 2. Clear active calls entry for this agent to make them free immediately
+      await FirebaseFirestore.instance
+          .collection('active_calls')
+          .doc(agentId)
+          .delete();
     } catch (e) {
       debugPrint("Error in force cleanup: $e");
     }
@@ -344,10 +344,11 @@ class SharedCallController {
         'durationSeconds': secondsElapsed,
       });
 
-      await FirebaseFirestore.instance.collection('agents').doc(agentId).set({
-        'isBusy': false,
-        'currentRoomId': null,
-      }, SetOptions(merge: true));
+      // Clear active call doc so agent can receive new calls right away
+      await FirebaseFirestore.instance
+          .collection('active_calls')
+          .doc(agentId)
+          .delete();
     } catch (e) {
       debugPrint("Error saving session: $e");
     }

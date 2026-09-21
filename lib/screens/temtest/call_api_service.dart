@@ -66,20 +66,31 @@ class CallApiService {
 
   static Future<Map<String, dynamic>> endCall({
     required String roomId,
-    String? customAgentId,
+    required String agentId,
+    required String endedBy,
+    required String disconnectReason,
   }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/end'),
-        headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "callId": roomId, // Backend callId expect karta hai
-          "agentId": customAgentId ?? staticAgentId,
+          'callId': roomId,
+          'agentId': agentId,
+          'endedBy': endedBy,
+          'disconnectReason': disconnectReason,
         }),
+        headers: {"Content-Type": "application/json"},
       );
-      return jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(response.body));
+      }
+
+      throw Exception(
+        jsonDecode(response.body)?['message'] ?? 'Failed to end call',
+      );
     } catch (e) {
-      return {"success": false, "message": e.toString()};
+      rethrow;
     }
   }
 

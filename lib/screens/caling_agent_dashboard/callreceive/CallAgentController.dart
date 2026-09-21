@@ -38,6 +38,9 @@ class CallAgentController extends GetxController {
   }
 
   /// 1️⃣ Firebase से लाइव कॉल्स सुनना (Static Agent ID और 'ringing' स्टेटस के साथ)
+  // क्लास के ऊपर आपका वेरिएबल वही पुराना रहने दें:
+  // StreamSubscription<QuerySnapshot>? _callStreamSubscription;
+
   void _startListeningToFirebaseCalls() {
     final String agentId = CallApiService.staticAgentId;
 
@@ -47,20 +50,29 @@ class CallAgentController extends GetxController {
     }
 
     try {
+      // 🚀 यहाँ हमने 'rooms' कलेक्शन की जगह सीधे एजेंट के डॉक्यूमेंट को टारगेट किया है
+      // (इससे किसी इंडेक्स की जरूरत नहीं पड़ेगी और डिले पूरी तरह खत्म हो जाएगा)
       _callStreamSubscription = FirebaseFirestore.instance
-          .collection('rooms')
-          .where('participants.agentId', isEqualTo: agentId)
-          .where('status', isEqualTo: 'ringing')
+          .collection('active_calls')
+          .where(
+            FieldPath.documentId,
+            isEqualTo: agentId,
+          ) // QuerySnapshot टाइप को सपोर्ट करने के लिए
           .snapshots()
           .listen(
-            (snapshot) {
+            (QuerySnapshot<Object?> snapshot) {
               for (var docChange in snapshot.docChanges) {
-                final data = docChange.doc.data();
+                final data = docChange.doc.data() as Map<String, dynamic>?;
+                if (data == null) continue;
+
                 if (docChange.type == DocumentChangeType.added ||
                     docChange.type == DocumentChangeType.modified) {
-                  if (data is Map<String, dynamic>) {
+                  final String status = data['status']?.toString() ?? '';
+
+                  // जब कॉल ringing स्टेट में होगी, तभी एजेंट को दिखेगी
+                  if (status == 'ringing') {
                     final formattedData = {
-                      'roomId': docChange.doc.id,
+                      'roomId': data['roomId']?.toString() ?? '',
                       'callerName':
                           data['userName']?.toString() ?? 'Valued Customer',
                       'avatarUrl': data['avatarUrl']?.toString() ?? '',

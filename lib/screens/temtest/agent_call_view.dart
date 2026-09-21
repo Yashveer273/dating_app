@@ -127,7 +127,9 @@ class _AgentCallViewState extends State<AgentCallView> {
 
     final endResult = await CallApiService.endCall(
       roomId: roomId,
-      customAgentId: widget.realAgentId,
+      agentId: widget.realAgentId,
+      endedBy: "agent_rejected",
+      disconnectReason: "disconnectReason",
     );
 
     debugPrint("PRINT End/Reject Call API Response -> $endResult");
