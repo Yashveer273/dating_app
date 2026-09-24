@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:talk24loves/screens/temtest/call_api_service.dart';
+import 'package:talk24loves/Api/call_api_service.dart';
+
 import 'dart:async';
 import 'call_item_models.dart';
 

@@ -8,6 +8,7 @@ import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/userSection/UserHomePage.dart';
+import 'package:talk24loves/screens/userSection/call_history_page.dart';
 import 'package:talk24loves/screens/userSection/component/UserMainController.dart';
 // Import your separate controller file:
 
@@ -31,12 +32,7 @@ class UserMainFile extends StatelessWidget {
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     ),
-    const Center(
-      child: Text(
-        'History Screen',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-    ),
+    CallHistoryPage(),
   ];
 
   @override

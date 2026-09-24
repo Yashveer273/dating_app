@@ -169,4 +169,58 @@ class UserApiService extends GetConnect {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  // ==========================================
+  // 4. FETCH USER CALL HISTORY (Updated)
+  // ==========================================
+
+  Future fetchUserCallHistory({
+    int page = 1,
+    int limit = 10,
+    DateTime? selectedDate,
+  }) async {
+    String userId = "6aaaa3f6af9ef557a3820e05";
+    try {
+      // Format date natively in YYYY-MM-DD format without needing external packages
+      String? formattedDate;
+      if (selectedDate != null) {
+        formattedDate = selectedDate.toIso8601String().split('T')[0];
+      }
+
+      // Sending multiple variations to match whatever your backend expects (userId, user_id, or visit.user_id)
+      final Map body = {
+        "userId": userId,
+        "user_id": userId,
+        "visit": {"user_id": userId},
+        "page": page,
+        "limit": limit,
+      };
+
+      if (formattedDate != null && formattedDate.isNotEmpty) {
+        body["date"] = formattedDate;
+      }
+
+      final response = await post(
+        '${AppConfig.rootBaseUrl}/api/user-agent-call-logs/user',
+        body,
+        headers: {'Accept': 'application/json'},
+      );
+
+      print("Call History Status: ${response.statusCode}");
+      print("Call History Response: ${response.body}");
+
+      if (response.body is Map) {
+        return Map.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print("Error fetching call history: $e");
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

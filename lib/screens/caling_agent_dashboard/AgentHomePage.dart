@@ -9,7 +9,6 @@ import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentProfilePage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentProfileModel.dart';
-import 'package:talk24loves/screens/temtest/role_selection_view.dart';
 
 class AgentHomePage extends StatefulWidget {
   const AgentHomePage({super.key});
@@ -337,17 +336,7 @@ class _AgentHomePageState extends State {
                       }),
 
                       const SizedBox(height: 18),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RoleSelectionView(),
-                            ),
-                          );
-                        },
-                        child: Text("Call Dash"),
-                      ),
+
                       // Feature Cards Grid (Video/Live/Audio)
                       SizedBox(
                         height: 110,
