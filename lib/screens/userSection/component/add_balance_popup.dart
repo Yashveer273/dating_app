@@ -2,6 +2,8 @@
 
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/cashfree_payment.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/userSection/component/wallet_screen.dart';
@@ -54,7 +56,8 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
 
   CouponOffer? selectedCoupon;
   late AnimationController _partyEffectController;
-
+  final ThemeController themeController = Get.find<ThemeController>();
+  bool get isDarkMode => themeController.isDarkMode;
   @override
   void initState() {
     super.initState();
@@ -91,6 +94,20 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = isDarkMode ? AppColors.darkCard : AppColors.lightCard;
+    final sectionColor = isDarkMode
+        ? AppColors.darkBgMid
+        : AppColors.lightBgMid;
+    final borderColor = isDarkMode
+        ? AppColors.darkBorder
+        : AppColors.lightBorder;
+    final primaryTextColor = isDarkMode
+        ? AppColors.darkPrimaryText
+        : AppColors.lightPrimaryText;
+    final secondaryTextColor = isDarkMode
+        ? AppColors.darkSecondaryText
+        : AppColors.lightSecondaryText;
+
     return Stack(
       children: [
         if (widget.selectedPack.extraPercent > 0)
@@ -109,10 +126,10 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
 
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppColors.darkCard,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: const Border(
               top: BorderSide(color: AppColors.primaryPink, width: 2),
             ),
           ),
@@ -125,16 +142,16 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.darkBorder,
+                    color: borderColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Payment Summary',
                 style: TextStyle(
-                  color: AppColors.darkPrimaryText,
+                  color: primaryTextColor,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -146,68 +163,79 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.darkBgMid,
+                  color: sectionColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.darkBorder),
+                  border: Border.all(color: borderColor),
                 ),
                 child: Column(
                   children: [
                     _buildSummaryRow(
                       'Recharge Amount',
                       '₹${baseAmount.toStringAsFixed(2)}',
+                      textColor: primaryTextColor,
+                      secondaryTextColor: secondaryTextColor,
                     ),
                     const SizedBox(height: 8),
                     _buildSummaryRow(
                       'Taxes & Charges (18%)',
                       '₹${taxes.toStringAsFixed(2)}',
+                      textColor: primaryTextColor,
+                      secondaryTextColor: secondaryTextColor,
                     ),
                     const SizedBox(height: 8),
                     _buildSummaryRow(
                       'Virtual wallet bonus',
                       '+ ₹${virtualBonusAmount.toStringAsFixed(2)}',
                       isGreen: true,
+                      textColor: primaryTextColor,
+                      secondaryTextColor: secondaryTextColor,
                     ),
-                    const Divider(color: AppColors.darkBorder, height: 16),
+                    Divider(color: borderColor, height: 16),
                     _buildSummaryRow(
                       'Actual pay',
                       '₹${totalPayable.toStringAsFixed(2)}',
                       isBold: true,
+                      textColor: primaryTextColor,
+                      secondaryTextColor: secondaryTextColor,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              const Text(
+              Text(
                 'Apply Coupon',
-                style: TextStyle(
-                  color: AppColors.darkSecondaryText,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: secondaryTextColor, fontSize: 12),
               ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.darkBgMid,
+                  color: sectionColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.darkBorder),
+                  border: Border.all(color: borderColor),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<CouponOffer?>(
                     value: selectedCoupon,
-                    dropdownColor: AppColors.darkCard,
+                    dropdownColor: surfaceColor,
                     isExpanded: true,
-                    style: const TextStyle(color: AppColors.darkPrimaryText),
+                    style: TextStyle(color: primaryTextColor),
                     items: [
-                      const DropdownMenuItem<CouponOffer?>(
+                      DropdownMenuItem<CouponOffer?>(
                         value: null,
-                        child: Text('No Coupon Applied'),
+                        child: Text(
+                          'No Coupon Applied',
+                          style: TextStyle(color: primaryTextColor),
+                        ),
                       ),
                       ...coupons.map((coupon) {
                         return DropdownMenuItem<CouponOffer?>(
                           value: coupon,
-                          child: Text(_formatCouponLabel(coupon)),
+                          child: Text(
+                            _formatCouponLabel(coupon),
+                            style: TextStyle(color: primaryTextColor),
+                          ),
                         );
                       }),
                     ],
@@ -232,6 +260,7 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
                         'coupon_bonus': selectedCoupon!.bonusAmount,
                       },
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -244,6 +273,8 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
     String value, {
     bool isBold = false,
     bool isGreen = false,
+    required Color textColor,
+    required Color secondaryTextColor,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -251,9 +282,7 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
         Text(
           title,
           style: TextStyle(
-            color: isBold
-                ? AppColors.darkPrimaryText
-                : AppColors.darkSecondaryText,
+            color: isBold ? textColor : secondaryTextColor,
             fontSize: 14,
           ),
         ),
@@ -262,9 +291,7 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
           style: TextStyle(
             color: isGreen
                 ? AppColors.otpSuccessGreen
-                : (isBold
-                      ? AppColors.darkPrimaryText
-                      : AppColors.darkSecondaryText),
+                : (isBold ? textColor : secondaryTextColor),
             fontSize: 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
           ),

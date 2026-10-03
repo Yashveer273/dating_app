@@ -38,8 +38,8 @@ class CallingAgentMainFile extends StatelessWidget {
             borderRadius: BorderRadius.circular(30),
             child: BackdropFilter(
               filter: ImageFilter.blur(
-                sigmaX: 20,
-                sigmaY: 20,
+                sigmaX: 10,
+                sigmaY: 10,
               ), // High blur for glass effect
               child: Container(
                 padding: const EdgeInsets.symmetric(

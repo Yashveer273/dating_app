@@ -19,6 +19,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!Get.isRegistered<ThemeController>()) {
+      Get.put(ThemeController());
+    }
     final themeController = Get.find<ThemeController>();
 
     return GetMaterialApp(
@@ -46,9 +49,7 @@ class MyApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      home:
-           const LoginScreen()
-          
+      home: const LoginScreen(),
     );
   }
 }

@@ -1,16 +1,21 @@
+// File: lib/screens/call_history_page.dart
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:talk24loves/Api/UserApiService.dart';
+import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
 
 class CallHistoryPage extends StatefulWidget {
   const CallHistoryPage({super.key});
 
   @override
-  State<CallHistoryPage> createState() => _CallHistoryPageState();
+  State createState() => _CallHistoryPageState();
 }
 
-class _CallHistoryPageState extends State<CallHistoryPage> {
+class _CallHistoryPageState extends State {
   final UserApiService _apiService = UserApiService();
+  final ThemeController themeController = Get.find();
 
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -43,16 +48,15 @@ class _CallHistoryPageState extends State<CallHistoryPage> {
     });
   }
 
+  bool get isDarkMode => themeController.isDarkMode;
+
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchHistoryData({
-    required int page,
-    bool reset = false,
-  }) async {
+  Future _fetchHistoryData({required int page, bool reset = false}) async {
     if (reset) {
       setState(() => _isLoading = true);
     } else {
@@ -92,13 +96,13 @@ class _CallHistoryPageState extends State<CallHistoryPage> {
     });
   }
 
-  Future<void> _loadMoreData() async {
+  Future _loadMoreData() async {
     if (_currentPage < _totalPages) {
       await _fetchHistoryData(page: _currentPage + 1, reset: false);
     }
   }
 
-  Future<void> _selectDate(BuildContext context) async {
+  Future _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
@@ -157,25 +161,8 @@ class _CallHistoryPageState extends State<CallHistoryPage> {
     return "$day/$month/$year • $hour:$minute";
   }
 
-  String _formatCallStatus(dynamic reason) {
-    final value = reason?.toString().toLowerCase().trim();
-
-    switch (value) {
-      case 'user_cancelled':
-        return 'Cancelled by You';
-
-      case 'normal_hangup':
-        return 'Call Ended';
-
-      default:
-        return 'Call Ended';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: isDarkMode ? AppColors.darkBgTop : AppColors.lightBgTop,
       appBar: AppBar(

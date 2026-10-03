@@ -11,12 +11,6 @@ import 'package:talk24loves/screens/userSection/UserHomePage.dart';
 import 'package:talk24loves/screens/userSection/call_history_page.dart';
 import 'package:talk24loves/screens/userSection/component/UserMainController.dart';
 import 'package:talk24loves/screens/userSection/component/wallet_screen.dart';
-// Import your separate controller file:
-
-// Import your 3 actual user screens below:
-// import 'package:talk24loves/screens/user_dashboard/UserHomePage.dart';
-// import 'package:talk24loves/screens/user_dashboard/RechargePage.dart';
-// import 'package:talk24loves/screens/user_dashboard/UserHistoryPage.dart';
 
 class UserMainFile extends StatelessWidget {
   UserMainFile({super.key});
@@ -48,8 +42,8 @@ class UserMainFile extends StatelessWidget {
               borderRadius: BorderRadius.circular(30),
               child: BackdropFilter(
                 filter: ImageFilter.blur(
-                  sigmaX: 20,
-                  sigmaY: 20,
+                  sigmaX: 10,
+                  sigmaY: 10,
                 ), // High blur for glass effect
                 child: Container(
                   padding: const EdgeInsets.symmetric(
