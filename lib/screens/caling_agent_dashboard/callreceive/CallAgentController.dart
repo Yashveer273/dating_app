@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/Api/call_api_service.dart';
 
 import 'dart:async';
@@ -19,7 +20,7 @@ class CallAgentController extends GetxController {
 
   // हिस्ट्री लिस्ट मैनेजमेंट
   RxList<HistoryCallItemModel> historyList = <HistoryCallItemModel>[].obs;
-
+  final UserApiService _apiService = Get.put(UserApiService());
   // Firebase Stream Subscription
   StreamSubscription<QuerySnapshot>? _callStreamSubscription;
 
@@ -27,6 +28,7 @@ class CallAgentController extends GetxController {
   void onInit() {
     super.onInit();
     _startListeningToFirebaseCalls();
+    _apiService.fetchAgentCallHistory();
   }
 
   @override

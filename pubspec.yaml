@@ -41,6 +41,7 @@ dependencies:
   http: ^1.6.0
   permission_handler: ^13.0.2
   flutter_local_notifications: ^22.3.1
+  flutter_cashfree_pg_sdk: ^2.4.0+52
 
 dev_dependencies:
   flutter_test:

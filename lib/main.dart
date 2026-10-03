@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
+import 'package:talk24loves/cashfree_payment.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/firebase_options.dart';
 import 'package:talk24loves/screens/phone_login_screen.dart';
@@ -45,7 +46,9 @@ class MyApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      home: const LoginScreen(),
+      home:
+           const LoginScreen()
+          
     );
   }
 }

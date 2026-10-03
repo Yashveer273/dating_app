@@ -10,6 +10,7 @@ import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/userSection/UserHomePage.dart';
 import 'package:talk24loves/screens/userSection/call_history_page.dart';
 import 'package:talk24loves/screens/userSection/component/UserMainController.dart';
+import 'package:talk24loves/screens/userSection/component/wallet_screen.dart';
 // Import your separate controller file:
 
 // Import your 3 actual user screens below:
@@ -24,16 +25,7 @@ class UserMainFile extends StatelessWidget {
   final ThemeController themeController = Get.find();
 
   // The 3 exact end-user screens: Home, Recharge, and History
-  final List _pages = [
-    UserHomePage(),
-    const Center(
-      child: Text(
-        'Recharge Screen',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-    ),
-    CallHistoryPage(),
-  ];
+  final List _pages = [UserHomePage(), WalletScreen(), CallHistoryPage()];
 
   @override
   Widget build(BuildContext context) {

@@ -6,10 +6,10 @@ class CallHistoryPage extends StatefulWidget {
   const CallHistoryPage({super.key});
 
   @override
-  State createState() => _CallHistoryPageState();
+  State<CallHistoryPage> createState() => _CallHistoryPageState();
 }
 
-class _CallHistoryPageState extends State {
+class _CallHistoryPageState extends State<CallHistoryPage> {
   final UserApiService _apiService = UserApiService();
 
   bool _isLoading = true;
@@ -49,7 +49,10 @@ class _CallHistoryPageState extends State {
     super.dispose();
   }
 
-  Future _fetchHistoryData({required int page, bool reset = false}) async {
+  Future<void> _fetchHistoryData({
+    required int page,
+    bool reset = false,
+  }) async {
     if (reset) {
       setState(() => _isLoading = true);
     } else {
@@ -59,7 +62,7 @@ class _CallHistoryPageState extends State {
     final response = await _apiService.fetchUserCallHistory(
       page: page,
       limit: 10,
-      selectedDate: _selectedDate, // Pass DateTime directly
+      selectedDate: _selectedDate,
     );
 
     if (response != null && response['success'] == true) {
@@ -68,6 +71,7 @@ class _CallHistoryPageState extends State {
         _userInfo = response['userInfo'];
 
         final pagination = response['pagination'];
+
         if (pagination != null) {
           _currentPage = pagination['currentPage'] ?? page;
           _totalPages = pagination['totalPages'] ?? 1;
@@ -88,13 +92,13 @@ class _CallHistoryPageState extends State {
     });
   }
 
-  Future _loadMoreData() async {
+  Future<void> _loadMoreData() async {
     if (_currentPage < _totalPages) {
       await _fetchHistoryData(page: _currentPage + 1, reset: false);
     }
   }
 
-  Future _selectDate(BuildContext context) async {
+  Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
@@ -119,6 +123,7 @@ class _CallHistoryPageState extends State {
       setState(() {
         _selectedDate = picked;
       });
+
       _fetchHistoryData(page: 1, reset: true);
     }
   }
@@ -127,12 +132,49 @@ class _CallHistoryPageState extends State {
     setState(() {
       _selectedDate = null;
     });
+
     _fetchHistoryData(page: 1, reset: true);
+  }
+
+  String _formatCallDate(dynamic createdAt) {
+    if (createdAt == null) {
+      return "Date unavailable";
+    }
+
+    final date = DateTime.tryParse(createdAt.toString());
+
+    if (date == null) {
+      return "Date unavailable";
+    }
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return "$day/$month/$year • $hour:$minute";
+  }
+
+  String _formatCallStatus(dynamic reason) {
+    final value = reason?.toString().toLowerCase().trim();
+
+    switch (value) {
+      case 'user_cancelled':
+        return 'Cancelled by You';
+
+      case 'normal_hangup':
+        return 'Call Ended';
+
+      default:
+        return 'Call Ended';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: isDarkMode ? AppColors.darkBgTop : AppColors.lightBgTop,
@@ -215,8 +257,10 @@ class _CallHistoryPageState extends State {
                             const SizedBox(height: 4),
                             Text(
                               _selectedDate != null
-                                  ? "Filtered: ${_selectedDate.toString().split('T')[0]}"
-                                  : "Total Records: ${_historyList.length}",
+                                  ? "Filtered: ${_selectedDate!.day.toString().padLeft(2, '0')}/"
+                                        "${_selectedDate!.month.toString().padLeft(2, '0')}/"
+                                        "${_selectedDate!.year}"
+                                  : "Call history",
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12,
@@ -281,11 +325,14 @@ class _CallHistoryPageState extends State {
                             }
 
                             final call = _historyList[index];
-                            bool isVideo = call['callType'] == 'video';
 
-                            String formattedTime = _selectedDate != null
-                                ? "Filtered: ${_selectedDate.toString().split('T')[0]}"
-                                : "Total Records: ${_historyList.length}";
+                            final bool isVideo = call['callType'] == 'video';
+
+                            final String formattedTime = _formatCallDate(
+                              call['createdAt'],
+                            );
+
+                            final String callStatus = call['disconnectReason'];
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -371,9 +418,7 @@ class _CallHistoryPageState extends State {
                                             ),
                                             const SizedBox(width: 6),
                                             _badge(
-                                              label:
-                                                  call['disconnectReason'] ??
-                                                  'ended',
+                                              label: callStatus,
                                               color: Colors.orangeAccent,
                                             ),
                                           ],

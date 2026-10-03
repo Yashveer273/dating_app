@@ -206,13 +206,59 @@ class UserApiService extends GetConnect {
         headers: {'Accept': 'application/json'},
       );
 
-      print("Call History Status: ${response.statusCode}");
-      print("Call History Response: ${response.body}");
-
       if (response.body is Map) {
         return Map.from(response.body);
       }
 
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print("Error fetching call history: $e");
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future fetchAgentCallHistory({
+    int page = 1,
+    int limit = 10,
+    DateTime? selectedDate,
+  }) async {
+    String userId = "6a9937f06155a73eb9594662";
+    try {
+      // Format date natively in YYYY-MM-DD format without needing external packages
+      String? formattedDate;
+      if (selectedDate != null) {
+        formattedDate = selectedDate.toIso8601String().split('T')[0];
+      }
+
+      // Sending multiple variations to match whatever your backend expects (userId, user_id, or visit.user_id)
+      final Map body = {
+        "agentId": userId,
+        "agent_id": userId,
+        "visit": {"user_id": userId},
+        "page": page,
+        "limit": limit,
+      };
+
+      if (formattedDate != null && formattedDate.isNotEmpty) {
+        body["date"] = formattedDate;
+      }
+
+      final response = await post(
+        '${AppConfig.rootBaseUrl}/api/user-agent-call-logs/agent',
+        body,
+        headers: {'Accept': 'application/json'},
+      );
+      print(response.body);
+      if (response.body is Map) {
+        var res = Map.from(response.body);
+        print(res);
+        return res;
+      }
+      print("..............");
       return {
         'success': false,
         'message': 'Invalid server response',
