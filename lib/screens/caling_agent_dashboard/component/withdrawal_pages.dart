@@ -1,359 +1,439 @@
 // ==========================================
-// withdrawal_pages.dart (Displays Payout & Organization Earnings History)
+// earnings_dashboard_page.dart (Clean & Corrected)
 // ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
+import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/ledger_controller.dart.dart';
 
 class EarningsDashboardPage extends StatelessWidget {
-  EarningsDashboardPage({super.key});
+  EarningsDashboardPage({super.key}) {
+    controller.ensureSampleData();
+  }
 
   final LedgerController controller = Get.find();
   final ThemeController themeController = Get.find();
 
   bool get isDarkMode => themeController.isDarkMode;
 
-  Color get primaryText =>
-      isDarkMode ? Colors.white : AppColors.lightPrimaryText;
-  Color get secondaryText =>
-      isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
-
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final Color cardBg = isDarkMode ? AppColors.darkCard : Colors.white;
-      final Color borderColor = isDarkMode
-          ? AppColors.darkBorder
-          : AppColors.lightBorder;
+    return Obx(
+      () => AppBackground(
+        isDarkMode: isDarkMode,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Obx(() {
+              final Color cardBg = isDarkMode
+                  ? AppColors.darkCard
+                  : Colors.white;
+              final Color textColor = isDarkMode
+                  ? Colors.white
+                  : AppColors.lightPrimaryText;
+              final Color subText = isDarkMode
+                  ? AppColors.darkSecondaryText
+                  : AppColors.lightSecondaryText;
+              final Color borderColor = isDarkMode
+                  ? AppColors.darkBorder
+                  : AppColors.lightBorder;
 
-      return Scaffold(
-        backgroundColor: isDarkMode ? AppColors.darkBgTop : Colors.white,
-        appBar: AppBar(
-          backgroundColor: cardBg,
-          elevation: isDarkMode ? 0 : 1,
-          iconTheme: IconThemeData(color: primaryText),
-          title: Text(
-            'Agent Earnings & Payouts',
-            style: TextStyle(
-              color: primaryText,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -.4,
-            ),
-          ),
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: cardBg,
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'PENDING WITHDRAWABLE INCOME',
-                      style: TextStyle(
-                        color: secondaryText,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                      ),
+              final payoutList = controller.filteredPayoutHistory;
+              final hasDateFilter = controller.selectedFilterDateValue != null;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Bar with Back, Sort & Date Filters
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      controller.withdrawalHistory.isEmpty
-                          ? 'Last Payout: None'
-                          : 'Last Payout: ${controller.withdrawalHistory.first.formattedTimestamp}',
-                      style: TextStyle(color: secondaryText, fontSize: 11),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '₹${controller.pendingIncome.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: primaryText,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      controller.canWithdraw
-                          ? 'Minimum threshold met (₹1000+). Ready for withdrawal.'
-                          : 'Min. ₹1000 required to withdraw.',
-                      style: TextStyle(
-                        color: controller.canWithdraw
-                            ? Colors.green
-                            : AppColors.primaryPink,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryPink,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13),
-                          ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.arrow_back_ios_rounded,
+                                size: 18,
+                                color: textColor,
+                              ),
+                              onPressed: () => Get.back(),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Payout Requests & Status',
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
                         ),
-                        onPressed: () => Get.to(() => WithdrawScreen()),
-                        child: const Text(
-                          'Withdraw Funds',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
+                        Row(
+                          children: [
+                            // Newest / Oldest Sort Button
+                            InkWell(
+                              onTap: () => controller.toggleSortOrder(),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cardBg,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.sort_rounded,
+                                      size: 14,
+                                      color: AppColors.primaryPink,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      controller.isAscendingSort.value
+                                          ? 'Oldest'
+                                          : 'Newest',
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // Calendar Filter Button
+                            InkWell(
+                              onTap: () async {
+                                final DateTime? picked = await showDatePicker(
+                                  context: context,
+                                  initialDate:
+                                      controller.selectedFilterDateValue ??
+                                      DateTime.now(),
+                                  firstDate: DateTime(2023),
+                                  lastDate: DateTime.now(),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: isDarkMode
+                                          ? ThemeData.dark()
+                                          : ThemeData.light(),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  controller.setDateFilter(picked);
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: hasDateFilter
+                                      ? AppColors.primaryPink.withOpacity(0.1)
+                                      : cardBg,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: hasDateFilter
+                                        ? AppColors.primaryPink
+                                        : borderColor,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 13,
+                                      color: AppColors.primaryPink,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      hasDateFilter ? 'Filtered' : 'Date',
+                                      style: TextStyle(
+                                        color: hasDateFilter
+                                            ? AppColors.primaryPink
+                                            : textColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    if (hasDateFilter) ...[
+                                      const SizedBox(width: 4),
+                                      InkWell(
+                                        onTap: () =>
+                                            controller.clearDateFilter(),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 12,
+                                          color: AppColors.primaryPink,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Pending Cycle Talk Time & Breakdown',
-                style: TextStyle(
-                  color: primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.4,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildBreakdownCard(
-                title: 'Audio Call (Pending Settlement)',
-                earnings: controller.audioCallEarnings.value,
-                talkTime: controller.pendingAudioTalkTime.value,
-                icon: Icons.phone_in_talk_rounded,
-                accentColor: Colors.blueAccent,
-                cardBg: cardBg,
-                borderColor: borderColor,
-              ),
-              const SizedBox(height: 10),
-              _buildBreakdownCard(
-                title: 'Video Call (Pending Settlement)',
-                earnings: controller.videoCallEarnings.value,
-                talkTime: controller.pendingVideoTalkTime.value,
-                icon: Icons.videocam_rounded,
-                accentColor: AppColors.primaryPink,
-                cardBg: cardBg,
-                borderColor: borderColor,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Payout History',
-                style: TextStyle(
-                  color: primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.4,
-                ),
-              ),
-              const SizedBox(height: 12),
-              controller.withdrawalHistory.isEmpty
-                  ? Text(
-                      'No past payout history found.',
-                      style: TextStyle(color: secondaryText, fontSize: 11),
-                    )
-                  : ListView.builder(
-                      itemCount: controller.withdrawalHistory.length,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        final record = controller.withdrawalHistory[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(13),
-                            border: Border.all(color: borderColor),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  Divider(color: borderColor, height: 1),
+
+                  // Main List Area
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        // Status Filter Tabs (All Requests, Pending, Accepted, Rejected)
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Bank: ${record.bankName}',
-                                      style: TextStyle(
-                                        color: primaryText,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Total: ₹${record.amount.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      color: Colors.green,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
+                              _buildStatusTabBadge(
+                                'All Requests',
+                                cardBg,
+                                borderColor,
+                                subText,
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Paid Date: ${record.formattedTimestamp}',
-                                      style: TextStyle(
-                                        color: secondaryText,
-                                        fontSize: 11,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Success',
-                                    style: TextStyle(
-                                      color: Colors.green,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(width: 8),
+                              _buildStatusTabBadge(
+                                'Pending',
+                                cardBg,
+                                borderColor,
+                                subText,
                               ),
-                              Divider(color: borderColor, height: 16),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.phone_in_talk_rounded,
-                                    size: 13,
-                                    color: Colors.blueAccent,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Audio Call Share',
-                                      style: TextStyle(
-                                        color: secondaryText,
-                                        fontSize: 11,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${record.audioEarnings.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      color: primaryText,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(width: 8),
+                              _buildStatusTabBadge(
+                                'Accepted',
+                                cardBg,
+                                borderColor,
+                                subText,
                               ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.videocam_rounded,
-                                    size: 13,
-                                    color: AppColors.primaryPink,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Video Call Share',
-                                      style: TextStyle(
-                                        color: secondaryText,
-                                        fontSize: 11,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${record.videoEarnings.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      color: primaryText,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(width: 8),
+                              _buildStatusTabBadge(
+                                'Rejected',
+                                cardBg,
+                                borderColor,
+                                subText,
                               ),
                             ],
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // List Items
+                        payoutList.isEmpty
+                            ? Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(32),
+                                decoration: BoxDecoration(
+                                  color: cardBg,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.receipt_long_outlined,
+                                      size: 36,
+                                      color: subText,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'No payout requests found.',
+                                      style: TextStyle(
+                                        color: subText,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: payoutList.length,
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemBuilder: (context, index) {
+                                  final record = payoutList[index];
+
+                                  Color statusColor = Colors.green;
+                                  Color statusBg = Colors.green.withOpacity(
+                                    0.1,
+                                  );
+                                  if (record.status.toLowerCase() ==
+                                      'pending') {
+                                    statusColor = Colors.orangeAccent;
+                                    statusBg = Colors.orangeAccent.withOpacity(
+                                      0.1,
+                                    );
+                                  } else if (record.status.toLowerCase() ==
+                                      'rejected') {
+                                    statusColor = AppColors.primaryPink;
+                                    statusBg = AppColors.primaryPink
+                                        .withOpacity(0.1);
+                                  }
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: cardBg,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: borderColor),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              record.id,
+                                              style: TextStyle(
+                                                color: subText,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: statusBg,
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                record.status,
+                                                style: TextStyle(
+                                                  color: statusColor,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '₹${record.amount.toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                color: textColor,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: -0.4,
+                                              ),
+                                            ),
+                                            Text(
+                                              record.bankName,
+                                              style: TextStyle(
+                                                color: subText,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Divider(color: borderColor, height: 1),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.access_time_rounded,
+                                                  size: 12,
+                                                  color: subText,
+                                                ),
+                                                const SizedBox(width: 5),
+                                                Text(
+                                                  record.formattedTimestamp,
+                                                  style: TextStyle(
+                                                    color: subText,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ],
                     ),
-            ],
+                  ),
+                ],
+              );
+            }),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 
-  Widget _buildBreakdownCard({
-    required String title,
-    required double earnings,
-    required String talkTime,
-    required IconData icon,
-    required Color accentColor,
-    required Color cardBg,
-    required Color borderColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: accentColor, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: primaryText,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Talk Time: $talkTime',
-                  style: TextStyle(color: secondaryText, fontSize: 11),
-                ),
-              ],
-            ),
+  Widget _buildStatusTabBadge(
+    String title,
+    Color cardBg,
+    Color borderColor,
+    Color subText,
+  ) {
+    final bool isSelected = controller.selectedStatusFilter.value == title;
+    return InkWell(
+      onTap: () => controller.updateStatusFilter(title),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryPink : cardBg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryPink : borderColor,
           ),
-          Text(
-            '₹${earnings.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: primaryText,
-              fontWeight: FontWeight.w900,
-              fontSize: 13,
-            ),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : subText,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -384,88 +464,96 @@ class WithdrawScreen extends StatelessWidget {
           ? AppColors.darkBorder
           : AppColors.lightBorder;
 
-      return Scaffold(
-        backgroundColor: isDarkMode ? AppColors.darkBgTop : Colors.white,
-        appBar: AppBar(
-          backgroundColor: cardBg,
-          elevation: isDarkMode ? 0 : 1,
-          iconTheme: IconThemeData(color: primaryText),
-          title: Text(
-            'Request Payout',
-            style: TextStyle(
-              color: primaryText,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -.4,
+      return AppBackground(
+        isDarkMode: isDarkMode,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: IconThemeData(color: primaryText),
+            title: Text(
+              'Request Payout',
+              style: TextStyle(
+                color: primaryText,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -.4,
+              ),
             ),
           ),
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BankDetailsSection(),
-              const SizedBox(height: 20),
-              Text(
-                'Withdrawal Amount (₹)',
-                style: TextStyle(
-                  color: primaryText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BankDetailsSection(),
+                const SizedBox(height: 20),
+                Text(
+                  'Withdrawal Amount (₹)',
+                  style: TextStyle(
+                    color: primaryText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                height: 46,
-                decoration: BoxDecoration(
-                  color: fillColor,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: TextField(
-                  controller: amountController,
-                  style: TextStyle(color: primaryText, fontSize: 12),
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 13),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(13),
-                      borderSide: BorderSide(color: borderColor),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(13),
-                      borderSide: const BorderSide(
-                        color: AppColors.primaryPink,
-                        width: 1.3,
+                const SizedBox(height: 8),
+                Container(
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: fillColor,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: TextField(
+                    controller: amountController,
+                    style: TextStyle(color: primaryText, fontSize: 12),
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 13,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(color: borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: const BorderSide(
+                          color: AppColors.primaryPink,
+                          width: 1.3,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryPink,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryPink,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                    ),
+                    onPressed: () {
+                      final amt = double.tryParse(amountController.text) ?? 0.0;
+                      controller.requestWithdrawal(amt);
+                    },
+                    child: const Text(
+                      'Submit Payout Request',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                  onPressed: () {
-                    final amt = double.tryParse(amountController.text) ?? 0.0;
-                    controller.requestWithdrawal(amt);
-                  },
-                  child: const Text(
-                    'Submit Payout Request',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );

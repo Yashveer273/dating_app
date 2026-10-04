@@ -1,6 +1,3 @@
-// ==========================================
-// Earnings_summary_card.dart (Displays Organization Payout & Earnings Summary)
-// ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
@@ -38,112 +35,26 @@ class EarningsSummaryCard extends StatelessWidget {
           ? AppColors.darkBorder
           : AppColors.lightBorder;
 
-      return Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => Get.to(() => EarningsDashboardPage()),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "PENDING PAYOUT",
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '₹${formatCurrency(controller.pendingIncome)}',
-                          style: TextStyle(
-                            color: primaryText,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Tap to Withdraw',
-                          style: TextStyle(color: secondaryText, fontSize: 11),
-                        ),
-                      ],
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          children: [
+            // PRIMARY BALANCE HERO CARD
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor, width: 1),
+                boxShadow: [
+                  if (!isDarkMode)
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 38,
-                  color: borderColor,
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: InkWell(
-                      onTap: () => Get.to(() => EarningsDashboardPage()),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "MIN WITHDRAWAL",
-                            style: TextStyle(
-                              color: AppColors.primaryPink,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '₹${formatCurrency(controller.minimumWithdrawalLimit)}',
-                            style: TextStyle(
-                              color: primaryText,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Threshold limit',
-                            style: TextStyle(
-                              color: secondaryText,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: borderColor),
-            ),
-            child: InkWell(
-              onTap: () => Get.to(() => EarningsDashboardPage()),
-              borderRadius: BorderRadius.circular(10),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -151,98 +62,91 @@ class EarningsSummaryCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'PENDING TALK TIME (FOR PAYOUT)',
+                        "AVAILABLE BALANCE",
                         style: TextStyle(
                           color: secondaryText,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.timer_rounded,
-                        color: AppColors.primaryPink,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.videocam_rounded,
-                                  color: AppColors.primaryPink,
-                                  size: 13,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  'Video (Pending)',
-                                  style: TextStyle(
-                                    color: secondaryText,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              controller.pendingVideoTalkTime.value,
-                              style: TextStyle(
-                                color: primaryText,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
                         ),
                       ),
                       Container(
-                        height: 40,
-                        width: 1,
-                        color: borderColor,
-                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.otpSuccessGreen.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "Ready for Payout",
+                          style: TextStyle(
+                            color: AppColors.otpSuccessGreen,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.phone_in_talk_rounded,
-                                  color: Colors.blueAccent,
-                                  size: 13,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  'Audio (Pending)',
-                                  style: TextStyle(
-                                    color: secondaryText,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '₹${formatCurrency(controller.walletBalance.value)}',
+                    style: TextStyle(
+                      color: primaryText,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: borderColor, height: 1),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Total Lifetime Earned",
+                            style: TextStyle(
+                              color: secondaryText,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              controller.pendingAudioTalkTime.value,
-                              style: TextStyle(
-                                color: primaryText,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${formatCurrency(controller.totalEarned.value)}',
+                            style: TextStyle(
+                              color: primaryText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                      OutlinedButton(
+                        onPressed: () => Get.to(() => EarningsDashboardPage()),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: borderColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: Text(
+                          'View History',
+                          style: TextStyle(
+                            color: primaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -250,8 +154,141 @@ class EarningsSummaryCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+
+            // TALK TIME BREAKDOWN CARD
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'PENDING TALK-TIME METRICS',
+                        style: TextStyle(
+                          color: secondaryText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      Icon(
+                        Icons.analytics_outlined,
+                        color: secondaryText,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.03)
+                                : Colors.grey.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.videocam_outlined,
+                                    color: AppColors.primaryPink,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Video Calls',
+                                    style: TextStyle(
+                                      color: secondaryText,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                controller.formatCallDuration(
+                                  controller.videoCallDurationSeconds.value,
+                                ),
+                                style: TextStyle(
+                                  color: primaryText,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.03)
+                                : Colors.grey.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.phone_outlined,
+                                    color: Colors.blueAccent,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Audio Calls',
+                                    style: TextStyle(
+                                      color: secondaryText,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                controller.formatCallDuration(
+                                  controller.audioCallDurationSeconds.value,
+                                ),
+                                style: TextStyle(
+                                  color: primaryText,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     });
   }

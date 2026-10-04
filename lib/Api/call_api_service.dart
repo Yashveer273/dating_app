@@ -6,8 +6,8 @@ import 'package:talk24loves/Api/AppConfig.dart';
 class CallApiService {
   static const String baseUrl = "${AppConfig.rootBaseUrl}/api/call";
 
-  static const String staticUserId = "6aaaa3f6af9ef557a3820e05";
-  static const String staticAgentId = "4F115683";
+  static const String staticUserId = "6ac1f8287e2785484262329d";
+  static const String staticAgentId = "D8D95EE5";
 
   static Future<Map<String, dynamic>> requestCall({
     required String callType,

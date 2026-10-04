@@ -21,14 +21,12 @@ class UserApiService extends GetConnect {
   Future<dynamic> fetchHomeData() async {
     try {
       final response = await get('$_userEndpoint/UseAppHome');
-
+      print("Home API failed: ${response.statusCode}, ${response.body}");
       if (response.statusCode == 200 &&
           response.body is Map &&
           response.body['status'] == true) {
         return response.body['data'];
       }
-
-      print("Home API failed: ${response.statusCode}, ${response.body}");
 
       return null;
     } catch (e) {
@@ -179,7 +177,7 @@ class UserApiService extends GetConnect {
     int limit = 10,
     DateTime? selectedDate,
   }) async {
-    String userId = "6aaaa3f6af9ef557a3820e05";
+    String userId = "6ac1f8287e2785484262329d";
     try {
       // Format date natively in YYYY-MM-DD format without needing external packages
       String? formattedDate;
@@ -226,7 +224,7 @@ class UserApiService extends GetConnect {
     int limit = 10,
     DateTime? selectedDate,
   }) async {
-    String userId = "6a9937f06155a73eb9594662";
+    String userId = "D8D95EE5";
     try {
       // Format date natively in YYYY-MM-DD format without needing external packages
       String? formattedDate;
@@ -266,6 +264,29 @@ class UserApiService extends GetConnect {
       };
     } catch (e) {
       print("Error fetching call history: $e");
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchAgentEarnings() async {
+    String agentId = "6ac1f98efe5f3f96642e22c1";
+    try {
+      final response = await get(
+        '${AppConfig.rootBaseUrl}/api/agents/me/earnings?agentId=$agentId',
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('Error fetching agent earnings: $e');
       return {'success': false, 'message': e.toString()};
     }
   }

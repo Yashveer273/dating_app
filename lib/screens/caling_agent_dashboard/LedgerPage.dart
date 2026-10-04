@@ -1,6 +1,3 @@
-// ==========================================
-// ledger_page.dart (Agent Payout Ledger Main View)
-// ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
@@ -10,9 +7,14 @@ import 'package:talk24loves/screens/caling_agent_dashboard/component/Earnings_su
 import 'package:talk24loves/screens/caling_agent_dashboard/component/ledger_controller.dart.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/withdrawal_pages.dart';
 
-class LedgerPage extends StatelessWidget {
+class LedgerPage extends StatefulWidget {
   LedgerPage({super.key});
 
+  @override
+  State createState() => _LedgerPageState();
+}
+
+class _LedgerPageState extends State {
   final LedgerController controller = Get.put(LedgerController());
   final ThemeController themeController = Get.find();
 
@@ -24,27 +26,34 @@ class LedgerPage extends StatelessWidget {
       isDarkMode ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
 
   @override
+  void initState() {
+    super.initState();
+    controller.fetchAgentEarningsFromServer();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Obx(() {
+      final Color borderColor = isDarkMode
+          ? AppColors.darkBorder
+          : AppColors.lightBorder;
+      final Color cardBg = isDarkMode ? AppColors.darkCard : Colors.white;
+
       return AppBackground(
         isDarkMode: isDarkMode,
         child: SafeArea(
           child: Column(
             children: [
-              // Header Title Area (Matching Agent History Page Style)
+              // PROFESSIONAL APP BAR HEADER
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 20,
                   vertical: 16,
                 ),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color:
-                          (isDarkMode
-                                  ? AppColors.darkBorder
-                                  : AppColors.lightBorder)
-                              .withOpacity(0.4),
+                      color: borderColor.withOpacity(0.5),
                       width: 1,
                     ),
                   ),
@@ -52,156 +61,135 @@ class LedgerPage extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(9),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryPink.withOpacity(0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.account_balance_wallet_rounded,
-                              color: AppColors.primaryPink,
-                              size: 18,
-                            ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ledger & Payouts',
+                          style: TextStyle(
+                            color: primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Ledger & Payouts',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: primaryText,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Earnings overview & transactions',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: secondaryText,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Manage your earnings and transfers',
+                          style: TextStyle(
+                            color: secondaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: () =>
+                          controller.fetchAgentEarningsFromServer(),
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        color: secondaryText,
+                        size: 20,
                       ),
+                      tooltip: 'Refresh Data',
                     ),
                   ],
                 ),
               ),
 
-              // Main Content Scrollable Area
+              // SCROLLABLE BODY CONTENT
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       EarningsSummaryCard(),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Quick Actions',
-                            style: TextStyle(
-                              color: primaryText,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -.4,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                Get.to(() => EarningsDashboardPage()),
-                            child: const Text(
-                              'All Payouts & History',
-                              style: TextStyle(
-                                color: AppColors.primaryPink,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? AppColors.darkCard
-                              : AppColors.lightCard,
-                          borderRadius: BorderRadius.circular(13),
-                          border: Border.all(
-                            color: isDarkMode
-                                ? AppColors.darkBorder
-                                : AppColors.lightBorder,
+                      const SizedBox(height: 24),
+
+                      // SECTION TITLE: QUICK ACTIONS
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'PAYOUT ACTIONS',
+                          style: TextStyle(
+                            color: secondaryText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
                           ),
                         ),
-                        child: Column(
-                          children: [
-                            Material(
-                              color: Colors.transparent,
-                              child: ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryPink.withOpacity(
-                                      0.12,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // ACTION LIST CONTAINER
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => Get.to(() => WithdrawScreen()),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.account_balance_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 20,
+                                      ),
                                     ),
-                                    borderRadius: BorderRadius.circular(11),
-                                  ),
-                                  child: const Icon(
-                                    Icons.account_balance_wallet_rounded,
-                                    color: AppColors.primaryPink,
-                                    size: 18,
-                                  ),
-                                ),
-                                title: Text(
-                                  'Request Organization Payout',
-                                  style: TextStyle(
-                                    color: primaryText,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    'Transfer pending talk-time earnings to bank',
-                                    style: TextStyle(
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Request Bank Payout',
+                                            style: TextStyle(
+                                              color: primaryText,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Transfer available talk-time funds securely',
+                                            style: TextStyle(
+                                              color: secondaryText,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 14,
                                       color: secondaryText,
-                                      fontSize: 11,
-                                      height: 1.35,
                                     ),
-                                  ),
+                                  ],
                                 ),
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 14,
-                                  color: secondaryText,
-                                ),
-                                onTap: () => Get.to(() => WithdrawScreen()),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ],

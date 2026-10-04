@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import 'package:talk24loves/Api/call_api_service.dart';
 import 'package:talk24loves/components/app_colors.dart';
@@ -362,8 +363,8 @@ class _CallRingingScreenState extends State<CallRingingScreen>
 
     final result = await CallApiService.requestCall(
       callType: widget.callType,
-      customAgentId: widget.agent.id,
-      customUserName: "John Doe",
+      customAgentId: widget.agent.agentId,
+      customUserName: widget.agent.displayName,
       avatarUrl: widget.agent.avatarUrl,
     );
 
@@ -418,6 +419,12 @@ class _CallRingingScreenState extends State<CallRingingScreen>
             }
           });
     } else {
+      print("Call request failed: ${result['message']}");
+      Get.snackbar(
+        'Error',
+        result['message'],
+        snackPosition: SnackPosition.TOP,
+      );
       _cleanupAndExit(
         result['message']?.toString() ?? 'Failed to connect call',
       );

@@ -2,7 +2,8 @@
 // AgentModel.dart (Updated with Call Fields)
 // ==========================================
 class AgentModel {
-  final String id;
+  final String id, agentId; // Unique identifier for the agent
+
   final String displayName;
   final String avatarUrl;
   final String bio;
@@ -17,6 +18,7 @@ class AgentModel {
 
   AgentModel({
     required this.id,
+    required this.agentId,
     required this.displayName,
     required this.avatarUrl,
     required this.bio,
@@ -37,6 +39,7 @@ class AgentModel {
   factory AgentModel.fromJson(Map json) {
     return AgentModel(
       id: json['_id'] ?? json['id'] ?? '',
+      agentId: json['agentId'] ?? '',
       displayName: json['displayName'] ?? json['name'] ?? '',
       avatarUrl: json['avatarUrl'] ?? json['image'] ?? '',
       bio: json['bio'] ?? '',
@@ -54,6 +57,7 @@ class AgentModel {
   Map toJson() {
     return {
       'id': id,
+      'agentId': agentId,
       'displayName': displayName,
       'avatarUrl': avatarUrl,
       'bio': bio,
