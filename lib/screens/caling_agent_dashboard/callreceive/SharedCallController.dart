@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:talk24loves/Api/call_api_service.dart';
 
 class FloatingReactionIcon {
   final int id;
@@ -26,21 +27,27 @@ class SharedCallController {
   final VoidCallback onExit;
 
   bool isMuted = false;
-  bool isRemoteMuted = false;
+  bool isAgentMuted = false;
+  bool isUserMuted = false;
+  bool get isRemoteMuted => isUserCaller ? isAgentMuted : isUserMuted;
   bool isCameraOff = false;
   bool isRemoteCameraOff = false;
   bool isLocalFullScreen = false;
   bool isSpeakerOn = false;
 
   int secondsElapsed = 0;
+  int? maxCallDurationSeconds;
+  double? walletBalanceAtCall;
+  double? callRatePerMinute;
+  DateTime? _acceptedAt;
   Timer? _callTimer;
-  Timer? _maxTimeoutTimer;
-  StreamSubscription<DocumentSnapshot>? roomSubscription;
+  bool _isBudgetSyncInProgress = false;
+  StreamSubscription? roomSubscription;
   late final DateTime callStartTime;
   bool isCallEnded = false;
   bool isActionInProgress = false;
 
-  final List<FloatingReactionIcon> floatingReactions = [];
+  final List floatingReactions = [];
   Timestamp? lastProcessedReactionTime;
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -52,17 +59,36 @@ class SharedCallController {
     required this.isUserCaller,
     required this.onStateUpdated,
     required this.onExit,
-  });
+    this.maxCallDurationSeconds,
+    this.walletBalanceAtCall,
+    this.callRatePerMinute,
+  }) {
+    _updateCalculatedMaxDuration();
+  }
+
+  void _updateCalculatedMaxDuration() {
+    if (maxCallDurationSeconds != null && maxCallDurationSeconds! > 0) {
+      return;
+    }
+    if (walletBalanceAtCall != null &&
+        callRatePerMinute != null &&
+        callRatePerMinute! > 0) {
+      final calculatedSeconds =
+          ((walletBalanceAtCall! / callRatePerMinute!) * 60).toInt();
+      if (calculatedSeconds > 0) {
+        maxCallDurationSeconds = calculatedSeconds;
+      }
+    }
+  }
 
   void init() {
     callStartTime = DateTime.now();
     _startCallTimer();
-    _startMaxTimeoutTimer();
     _listenToRoomUpdates();
     _initNotificationsAndShowOngoing();
   }
 
-  Future<void> _initNotificationsAndShowOngoing() async {
+  Future _initNotificationsAndShowOngoing() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -85,7 +111,7 @@ class SharedCallController {
     await _showPersistentCallNotification();
   }
 
-  Future<void> _showPersistentCallNotification() async {
+  Future _showPersistentCallNotification() async {
     int notificationId = roomId.hashCode;
 
     AndroidNotificationDetails androidPlatformChannelSpecifics =
@@ -98,7 +124,7 @@ class SharedCallController {
           priority: Priority.high,
           ongoing: true,
           autoCancel: false,
-          actions: <AndroidNotificationAction>[
+          actions: [
             AndroidNotificationAction(
               'mute_action',
               isMuted ? 'Unmute' : 'Mute',
@@ -129,18 +155,28 @@ class SharedCallController {
     );
   }
 
-  void _startMaxTimeoutTimer() {
-    _maxTimeoutTimer = Timer(const Duration(seconds: 90), () {
-      if (!isCallEnded) {
-        debugPrint("Call timed out after 90 seconds.");
-        forceCleanupOnExit(endedBy: 'timeout');
-      }
-    });
-  }
-
   void _startCallTimer() {
     _callTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      secondsElapsed++;
+      final acceptedAt = _acceptedAt;
+      // 🟢 Fix: Call accept होने के बाद WhatsApp की तरह 0 से duration शुरू होगा
+      secondsElapsed = acceptedAt == null
+          ? secondsElapsed + 1
+          : DateTime.now().difference(acceptedAt).inSeconds.clamp(0, 1 << 31);
+
+      if (isUserCaller && secondsElapsed > 0 && secondsElapsed % 15 == 0) {
+        unawaited(_syncBudgetSnapshot());
+      }
+      final remainingSeconds = remainingCallSeconds;
+      if (remainingSeconds != null && remainingSeconds <= 0) {
+        onStateUpdated();
+        unawaited(
+          forceCleanupOnExit(
+            endedBy: 'wallet_limit',
+            disconnectReason: 'wallet_balance_exhausted',
+          ),
+        );
+        return;
+      }
       if (secondsElapsed % 5 == 0) {
         _showPersistentCallNotification();
       }
@@ -154,41 +190,72 @@ class SharedCallController {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  Future<void> toggleSpeaker() async {
+  int? get remainingCallSeconds {
+    final maxDuration = maxCallDurationSeconds;
+    if (maxDuration == null || maxDuration <= 0) return null;
+    final remaining = maxDuration - secondsElapsed;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  double? get estimatedWalletBalance {
+    final balance = walletBalanceAtCall;
+    final rate = callRatePerMinute;
+    if (balance == null || rate == null) return null;
+    final remaining = balance - (rate * secondsElapsed / 60);
+    return remaining > 0 ? remaining : 0;
+  }
+
+  Future _syncBudgetSnapshot() async {
+    if (!isUserCaller || _isBudgetSyncInProgress || isCallEnded) return;
+    final currentBalance = estimatedWalletBalance;
+    final remainingSeconds = remainingCallSeconds;
+    if (currentBalance == null || remainingSeconds == null) return;
+
+    _isBudgetSyncInProgress = true;
+    try {
+      await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
+        'currentWalletBalance': currentBalance,
+        'remainingDurationSeconds': remainingSeconds,
+        'budgetUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error syncing call budget to room: $e');
+    } finally {
+      _isBudgetSyncInProgress = false;
+    }
+  }
+
+  Future toggleSpeaker() async {
     isSpeakerOn = !isSpeakerOn;
     onStateUpdated();
     await _showPersistentCallNotification();
   }
 
-  // views/caling_agent_dashboard/callreceive/SharedCallController.dart
-
-  Future<void> toggleMute() async {
+  Future toggleMute() async {
     isMuted = !isMuted;
     onStateUpdated();
     await _showPersistentCallNotification();
 
     try {
+      // 🟢 Fix: सही फील्ड नेम के साथ Firebase पर म्यूट स्टेटस अपडेट करें ताकि दूसरे यूजर/एजेंट को तुरंत दिखे
       final updateField = isUserCaller ? 'userMuted' : 'agentMuted';
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
+      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
         updateField: isMuted,
-      });
-      debugPrint(
-        "✅ Mute state successfully updated to Firestore: $updateField = $isMuted",
-      );
+      }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint("❌ Error updating mute state: $e");
+      debugPrint("Error updating mute state: $e");
     }
   }
 
-  Future<void> toggleCamera() async {
+  Future toggleCamera() async {
     isCameraOff = !isCameraOff;
     onStateUpdated();
 
     try {
       final updateField = isUserCaller ? 'userCameraOff' : 'agentCameraOff';
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
+      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
         updateField: isCameraOff,
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint("Error updating camera state: $e");
     }
@@ -199,56 +266,96 @@ class SharedCallController {
         .collection('rooms')
         .doc(roomId)
         .snapshots()
-        .listen((snapshot) {
-          if (!snapshot.exists) {
-            safeExit();
-            return;
-          }
-
-          final data = snapshot.data() as Map<String, dynamic>?;
-          if (data == null) return;
-
-          final status = data['status'];
-          if (status == 'ended' ||
-              status == 'rejected' ||
-              status == 'timeout' ||
-              status == 'missed') {
-            safeExit();
-            return;
-          }
-
-          isRemoteMuted = isUserCaller
-              ? (data['agentMuted'] ?? false)
-              : (data['userMuted'] ?? false);
-
-          isRemoteCameraOff = isUserCaller
-              ? (data['agentCameraOff'] ?? false)
-              : (data['userCameraOff'] ?? false);
-
-          final reactionData = data['latestReaction'] as Map<String, dynamic>?;
-          if (reactionData != null) {
-            final timestamp = reactionData['timestamp'] as Timestamp?;
-            final sender = reactionData['reactionSender']?.toString();
-            final key = reactionData['key']?.toString();
-
-            String currentSenderRole = isUserCaller ? 'user' : 'agent';
-            if (timestamp != null &&
-                key != null &&
-                sender != currentSenderRole) {
-              if (lastProcessedReactionTime == null ||
-                  timestamp.millisecondsSinceEpoch >
-                      lastProcessedReactionTime!.millisecondsSinceEpoch) {
-                lastProcessedReactionTime = timestamp;
-                _triggerLocalReactionAnimation(key);
-              }
+        .listen(
+          (snapshot) {
+            if (!snapshot.exists) {
+              safeExit();
+              return;
             }
-          }
 
-          onStateUpdated();
-        });
+            final data = snapshot.data() as Map?;
+            if (data == null) return;
+
+            final startingBalance = data['walletBalanceAtCall'];
+            if (startingBalance is num) {
+              walletBalanceAtCall = startingBalance.toDouble();
+            }
+            final rate = data['ratePerMinute'];
+            if (rate is num) {
+              callRatePerMinute = rate.toDouble();
+            }
+
+            final maxDurationDoc = data['maxDurationSeconds'];
+            if (maxDurationDoc is num && maxDurationDoc > 0) {
+              maxCallDurationSeconds = maxDurationDoc.toInt();
+            }
+
+            _updateCalculatedMaxDuration();
+
+            final acceptedAt = data['acceptedAt'];
+            if (acceptedAt is Timestamp) {
+              _acceptedAt = acceptedAt.toDate();
+              secondsElapsed = DateTime.now()
+                  .difference(_acceptedAt!)
+                  .inSeconds
+                  .clamp(0, 1 << 31);
+            }
+
+            final status = data['status'];
+            if (status == 'ended' ||
+                status == 'rejected' ||
+                status == 'missed') {
+              safeExit();
+              return;
+            }
+
+            // 🟢 Fix: रियल-टाइम म्यूट स्टेटस डेटा फेच करना (अगर यूजर कॉल कर रहा है तो एजेंट का म्यूट स्टेट पढ़ेगा और vice versa)
+            isAgentMuted = data['agentMuted'] == true;
+            isUserMuted = data['userMuted'] == true;
+
+            isRemoteCameraOff = isUserCaller
+                ? (data['agentCameraOff'] ?? false)
+                : (data['userCameraOff'] ?? false);
+
+            try {
+              final reactionRaw = data['latestReaction'];
+              if (reactionRaw is Map) {
+                final reactionData = Map.from(reactionRaw);
+                final timestamp = reactionData['timestamp'] as Timestamp?;
+                final sender = reactionData['reactionSender']?.toString();
+                final key = reactionData['key']?.toString();
+
+                String currentSenderRole = isUserCaller ? 'user' : 'agent';
+                if (timestamp != null &&
+                    key != null &&
+                    sender != currentSenderRole) {
+                  if (lastProcessedReactionTime == null ||
+                      timestamp.millisecondsSinceEpoch >
+                          lastProcessedReactionTime!.millisecondsSinceEpoch) {
+                    lastProcessedReactionTime = timestamp;
+                    _triggerLocalReactionAnimation(key);
+                  }
+                }
+              }
+            } catch (e) {
+              debugPrint("Error parsing reaction: $e");
+            }
+
+            onStateUpdated();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('Call room listener network error: $error');
+            unawaited(
+              forceCleanupOnExit(
+                endedBy: isUserCaller ? 'user' : 'agent',
+                disconnectReason: 'network_disconnected',
+              ),
+            );
+          },
+        );
   }
 
-  Future<void> sendReaction(String iconKey) async {
+  Future sendReaction(String iconKey) async {
     _triggerLocalReactionAnimation(iconKey);
 
     try {
@@ -301,7 +408,7 @@ class SharedCallController {
     });
   }
 
-  Future<void> hangupCall() async {
+  Future hangupCall() async {
     if (isCallEnded || isActionInProgress) return;
     isActionInProgress = true;
     onStateUpdated();
@@ -310,19 +417,50 @@ class SharedCallController {
     safeExit();
   }
 
-  Future<void> forceCleanupOnExit({String endedBy = 'disconnected'}) async {
+  DateTime get _effectiveCallStartTime => _acceptedAt ?? callStartTime;
+
+  int _durationAt(DateTime endTime) {
+    final duration = endTime.difference(_effectiveCallStartTime).inSeconds;
+    return duration > 0 ? duration : 0;
+  }
+
+  Future forceCleanupOnExit({
+    String endedBy = 'disconnected',
+    String disconnectReason = 'unexpected_disconnect',
+  }) async {
     if (isCallEnded) return;
     isCallEnded = true;
+    final endTime = DateTime.now();
+    final durationInSeconds = _durationAt(endTime);
 
     try {
-      // 1. Mark room as ended
+      await CallApiService.endCall(
+        roomId: roomId,
+        agentId: agentId,
+        endedBy: endedBy,
+        disconnectReason: disconnectReason,
+        startTime: _effectiveCallStartTime,
+        endTime: endTime,
+        durationInSeconds: durationInSeconds,
+      );
+    } catch (e) {
+      debugPrint("Error calling backend endCall API in forceCleanup: $e");
+    }
+
+    try {
       await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
         'status': 'ended',
         'endedBy': endedBy,
+        'disconnectReason': disconnectReason,
         'disconnectedAt': FieldValue.serverTimestamp(),
+        'startTimeMs': _effectiveCallStartTime.millisecondsSinceEpoch,
+        'endTimeMs': endTime.millisecondsSinceEpoch,
+        'durationInSeconds': durationInSeconds,
+        'currentWalletBalance': estimatedWalletBalance,
+        'remainingDurationSeconds': remainingCallSeconds,
+        'budgetUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // 2. Clear active calls entry for this agent to make them free immediately
       await FirebaseFirestore.instance
           .collection('active_calls')
           .doc(agentId)
@@ -333,18 +471,43 @@ class SharedCallController {
     safeExit();
   }
 
-  Future<void> saveCallSessionAndReset({required String endedBy}) async {
+  Future saveCallSessionAndReset({
+    required String endedBy,
+    String disconnectReason = 'normal_hangup',
+  }) async {
     if (isCallEnded) return;
     isCallEnded = true;
+    final endTime = DateTime.now();
+    final durationInSeconds = _durationAt(endTime);
+
+    try {
+      await CallApiService.endCall(
+        roomId: roomId,
+        agentId: agentId,
+        endedBy: endedBy,
+        disconnectReason: disconnectReason,
+        startTime: _effectiveCallStartTime,
+        endTime: endTime,
+        durationInSeconds: durationInSeconds,
+      );
+    } catch (e) {
+      debugPrint("Error calling backend endCall API: $e");
+    }
 
     try {
       await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
         'status': 'ended',
         'endedBy': endedBy,
-        'durationSeconds': secondsElapsed,
+        'disconnectReason': disconnectReason,
+        'startTimeMs': _effectiveCallStartTime.millisecondsSinceEpoch,
+        'endTimeMs': endTime.millisecondsSinceEpoch,
+        'durationInSeconds': durationInSeconds,
+        'durationSeconds': durationInSeconds,
+        'currentWalletBalance': estimatedWalletBalance,
+        'remainingDurationSeconds': remainingCallSeconds,
+        'budgetUpdatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Clear active call doc so agent can receive new calls right away
       await FirebaseFirestore.instance
           .collection('active_calls')
           .doc(agentId)
@@ -356,23 +519,21 @@ class SharedCallController {
 
   void safeExit() {
     _callTimer?.cancel();
-    _maxTimeoutTimer?.cancel();
     roomSubscription?.cancel();
-
     flutterLocalNotificationsPlugin.cancel(id: roomId.hashCode);
-
     onExit();
   }
 
   void dispose() {
     _callTimer?.cancel();
-    _maxTimeoutTimer?.cancel();
     roomSubscription?.cancel();
-
     flutterLocalNotificationsPlugin.cancel(id: roomId.hashCode);
 
     if (!isCallEnded) {
-      forceCleanupOnExit(endedBy: isUserCaller ? 'user_crash' : 'agent_crash');
+      forceCleanupOnExit(
+        endedBy: isUserCaller ? 'user' : 'agent',
+        disconnectReason: 'screen_disposed',
+      );
     }
   }
 }

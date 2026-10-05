@@ -219,6 +219,16 @@ class UserApiService extends GetConnect {
     }
   }
 
+  Future<double?> fetchCurrentWalletBalance() async {
+    final response = await fetchUserCallHistory(page: 1, limit: 1);
+    if (response is Map && response['success'] == true) {
+      final balance = response['currentWalletBalance'];
+      if (balance is num) return balance.toDouble();
+      return double.tryParse(balance?.toString() ?? '');
+    }
+    return null;
+  }
+
   Future fetchAgentCallHistory({
     int page = 1,
     int limit = 10,

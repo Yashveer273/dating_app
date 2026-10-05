@@ -22,20 +22,22 @@ class CallAgentController extends GetxController {
   RxList historyList = [].obs;
   final UserApiService _apiService = Get.put(UserApiService());
 
-  // Firebase Stream Subscription
+  // Firebase Stream Subscriptions
   StreamSubscription? _callStreamSubscription;
+  StreamSubscription? _roomStatusStreamSubscription;
 
   @override
   void onInit() {
     super.onInit();
     _startListeningToFirebaseCalls();
-    fetchAndLoadCallHistory(); // 🟢 API से हिस्ट्री लोड करने का मेथड कॉल किया गया
+    fetchAndLoadCallHistory();
   }
 
   @override
   void onClose() {
     _callStreamSubscription?.cancel();
-    for (var call in incomingQueue) {
+    _roomStatusStreamSubscription?.cancel();
+    for (final call in incomingQueue) {
       call.dispose();
     }
     super.onClose();
@@ -44,11 +46,8 @@ class CallAgentController extends GetxController {
   /// 🟢 API से कॉल हिस्ट्री फेच करके मॉडल में पार्स करके लिस्ट में डालने का फंक्शन
   void fetchAndLoadCallHistory() async {
     try {
-      // मान लेते हैं कि _apiService.fetchAgentCallHistory() लिस्ट या मैप रिटर्न करता है
-      // यदि यह डायनामिक डेटा देता है तो उसे नीचे दिए गए तरीके से लूप करें:
       var response = await _apiService.fetchAgentCallHistory();
 
-      // यदि रिस्पॉन्स में 'history' नाम की लिस्ट है (जैसा आपके JSON में दिख रहा है):
       if (response != null && response['history'] != null) {
         List rawList = response['history'];
 
@@ -66,25 +65,41 @@ class CallAgentController extends GetxController {
     }
   }
 
-  /// 1️⃣ Firebase से लाइव कॉल्स सुनना
+  /// 1️⃣ Firebase से लाइव कॉल्स और रूम स्टेटस सुनना
+  /// 1️⃣ Firebase से लाइव कॉल्स और रूम स्टेटस सुनना
+  /// 1️⃣ Firebase से लाइव कॉल्स और रूम स्टेटस सुनना (Directly from 'rooms' collection)
   void _startListeningToFirebaseCalls() {
     final String agentId = CallApiService.staticAgentId;
 
     if (agentId.isEmpty) {
-      print('⚠️️ DEBUG: Static Agent ID खाली है!');
+      print('⚠ DEBUG: Static Agent ID खाली है!');
       return;
     }
 
     try {
+      print(
+        '🎧 Listening for incoming ringing calls in "rooms" for agent: $agentId',
+      );
+
+      // 🟢 Fix: Listen directly to 'rooms' collection where call status is 'ringing'
       _callStreamSubscription = FirebaseFirestore.instance
-          .collection('active_calls')
-          .where(FieldPath.documentId, isEqualTo: agentId)
+          .collection('rooms')
+          .where('participants.agentId', isEqualTo: agentId)
+          .where('status', isEqualTo: 'ringing')
           .snapshots()
           .listen(
             (QuerySnapshot snapshot) {
+              print(
+                '📥 Rooms snapshot received! Total active ringing calls: ${snapshot.docs.length}',
+              );
+
               for (var docChange in snapshot.docChanges) {
                 final data = docChange.doc.data() as Map?;
                 if (data == null) continue;
+
+                print(
+                  '🔔 Document Change Type: \({docChange.type}, ID:\){docChange.doc.id}, Data: $data',
+                );
 
                 if (docChange.type == DocumentChangeType.added ||
                     docChange.type == DocumentChangeType.modified) {
@@ -92,22 +107,70 @@ class CallAgentController extends GetxController {
 
                   if (status == 'ringing') {
                     final formattedData = {
-                      'roomId': data['roomId']?.toString() ?? '',
+                      'roomId':
+                          data['roomId']?.toString() ??
+                          data['id'] ??
+                          docChange.doc.id,
                       'callerName':
                           data['userName']?.toString() ?? 'Valued Customer',
                       'avatarUrl': data['avatarUrl']?.toString() ?? '',
-                      'callType': data['callType']?.toString() ?? 'video',
+                      'callType': data['callType']?.toString() ?? 'audio',
                       'createdAt':
                           data['createdAt'] ??
                           DateTime.now().millisecondsSinceEpoch,
                     };
+
+                    print(
+                      '✅ New Ringing Call Detected & Formatting Data: $formattedData',
+                    );
                     handleApiCallReceived(formattedData);
                   }
                 }
               }
             },
             onError: (error) {
-              print('❌ Firebase listener error: $error');
+              print('❌ Firebase rooms listener error: $error');
+            },
+          );
+
+      // 2. 🟢 रूम कैंसिलेशन या टाइमआउट (ended / timeout) सुनने के लिए दूसरा लिसनर
+      _roomStatusStreamSubscription = FirebaseFirestore.instance
+          .collection('rooms')
+          .where('participants.agentId', isEqualTo: agentId)
+          .where('status', isEqualTo: 'ended')
+          .snapshots()
+          .listen(
+            (snapshot) {
+              for (var docChange in snapshot.docChanges) {
+                final data = docChange.doc.data() as Map?;
+                if (data == null) continue;
+
+                final String roomId = data['id'] ?? docChange.doc.id;
+                final bool wasUnanswered = data['endedBy'] == 'agent_no_answer';
+
+                if (incomingQueue.any((call) => call.id == roomId)) {
+                  print('🔔 Room ended on server. Moving to history.');
+
+                  _resolveLocalCallToHistory(
+                    roomId,
+                    statusText: wasUnanswered
+                        ? 'Missed Call (No answer)'
+                        : 'Call Ended / Cancelled',
+                    statusColor: wasUnanswered
+                        ? Colors.orangeAccent
+                        : Colors.redAccent,
+                    badgeIcon: wasUnanswered
+                        ? Icons.timer_off_rounded
+                        : Icons.call_end_rounded,
+                    timeDetail: wasUnanswered
+                        ? 'No answer • 90s'
+                        : 'Call ended • Just now',
+                  );
+                }
+              }
+            },
+            onError: (error) {
+              print('❌ Firebase room status listener error: $error');
             },
           );
     } catch (e) {
@@ -142,9 +205,7 @@ class CallAgentController extends GetxController {
           isVideoCall: isVideo,
           isBrandNew: true,
           initialDurationSeconds: 90,
-          onTimeout: () {
-            handleCallTimeout(roomId);
-          },
+          onTimeout: () => unawaited(handleCallTimeout(roomId)),
         );
 
         incomingQueue.insert(0, newCallItem);
@@ -155,30 +216,116 @@ class CallAgentController extends GetxController {
   }
 
   Future acceptCall(String callId) async {
+    final queueIndex = incomingQueue.indexWhere((call) => call.id == callId);
+    final IncomingCallItemModel? incomingCall = queueIndex == -1
+        ? null
+        : incomingQueue[queueIndex];
+    incomingCall?.pauseAcceptTimeout();
+
     try {
       print('📞 Accepting call ID: $callId');
-      await FirebaseFirestore.instance.collection('rooms').doc(callId).update({
-        'status': 'accepted',
-        'acceptedAt': FieldValue.serverTimestamp(),
+
+      final acceptedAt = DateTime.now();
+      final roomRef = FirebaseFirestore.instance
+          .collection('rooms')
+          .doc(callId);
+      final didAccept = await FirebaseFirestore.instance.runTransaction<bool>((
+        transaction,
+      ) async {
+        final roomSnapshot = await transaction.get(roomRef);
+        if (!roomSnapshot.exists ||
+            roomSnapshot.data()?['status'] != 'ringing') {
+          return false;
+        }
+
+        transaction.update(roomRef, {
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'startTimeMs': acceptedAt.millisecondsSinceEpoch,
+        });
+        return true;
       });
+
+      if (!didAccept) {
+        incomingCall?.cancelAcceptTimeout();
+        _resolveLocalCallToHistory(
+          callId,
+          statusText: 'Call Ended / Cancelled',
+          statusColor: Colors.redAccent,
+          badgeIcon: Icons.call_end_rounded,
+          timeDetail: 'Call ended • Just now',
+        );
+        return false;
+      }
+
+      incomingCall?.cancelAcceptTimeout();
 
       final int index = incomingQueue.indexWhere((call) => call.id == callId);
       if (index != -1) {
-        final IncomingCallItemModel call = incomingQueue[index];
         incomingQueue.removeAt(index);
-        call.dispose();
       }
       return true;
     } catch (e) {
+      incomingCall?.resumeAcceptTimeout();
       print('❌ Error accepting call: $e');
       Get.snackbar('Error', 'Could not connect call. Please try again.');
       return false;
     }
   }
 
+  Future<void> handleCallTimeout(String callId) async {
+    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(callId);
+    try {
+      final didTimeout = await FirebaseFirestore.instance.runTransaction<bool>((
+        transaction,
+      ) async {
+        final roomSnapshot = await transaction.get(roomRef);
+        if (!roomSnapshot.exists ||
+            roomSnapshot.data()?['status'] != 'ringing') {
+          return false;
+        }
+
+        transaction.update(roomRef, {
+          'status': 'ended',
+          'endedBy': 'agent_no_answer',
+          'disconnectReason': 'agent_timeout',
+          'endedAt': FieldValue.serverTimestamp(),
+        });
+        return true;
+      });
+
+      if (didTimeout) {
+        _resolveLocalCallToHistory(
+          callId,
+          statusText: 'Missed Call (No answer)',
+          statusColor: Colors.orangeAccent,
+          badgeIcon: Icons.timer_off_rounded,
+          timeDetail: 'No answer • 90s',
+        );
+      }
+    } catch (e) {
+      print('Error ending unanswered call: $e');
+    }
+  }
+
   Future declineCall(String callId) async {
+    final index = incomingQueue.indexWhere((call) => call.id == callId);
+    if (index != -1) {
+      (incomingQueue[index] as IncomingCallItemModel).cancelAcceptTimeout();
+    }
+
     try {
       print('🚫 Declining/Ending call ID: $callId');
+
+      // 🟢 Backend endCall API कॉल करें ताकि सर्वर-साइड Missed/Declined CallLog सही से सेव हो सके
+      // 🟢 Fix: Pass parameters as named parameters with colons (:)
+      await CallApiService.endCall(
+        roomId: callId,
+        agentId: CallApiService.staticAgentId,
+        endedBy: 'agent',
+        disconnectReason: 'declined_by_agent',
+      );
+
       await FirebaseFirestore.instance.collection('rooms').doc(callId).update({
         'status': 'ended',
         'endedAt': FieldValue.serverTimestamp(),
@@ -186,51 +333,31 @@ class CallAgentController extends GetxController {
 
       _resolveLocalCallToHistory(
         callId,
-        isTimeout: false,
         statusText: 'Declined / Cut by Agent',
         statusColor: Colors.redAccent,
         badgeIcon: Icons.call_end_rounded,
+        timeDetail: 'Cut by agent • Just now',
       );
       return true;
     } catch (e) {
       print('❌ Error declining call in Firebase: $e');
       _resolveLocalCallToHistory(
         callId,
-        isTimeout: false,
         statusText: 'Declined / Cut by Agent',
         statusColor: Colors.redAccent,
         badgeIcon: Icons.call_end_rounded,
+        timeDetail: 'Cut by agent • Just now',
       );
       return true;
     }
   }
 
-  void handleCallTimeout(String callId) {
-    print('⌛ Timer (90s) completed for call ID: $callId');
-    try {
-      FirebaseFirestore.instance.collection('rooms').doc(callId).update({
-        'status': 'timeout',
-        'endedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      print('Error updating timeout status: $e');
-    }
-
-    _resolveLocalCallToHistory(
-      callId,
-      isTimeout: true,
-      statusText: 'Missed Call (Timed out)',
-      statusColor: Colors.orangeAccent,
-      badgeIcon: Icons.timer_off_rounded,
-    );
-  }
-
   void _resolveLocalCallToHistory(
     String callId, {
-    required bool isTimeout,
     required String statusText,
     required Color statusColor,
     required IconData badgeIcon,
+    required String timeDetail,
   }) {
     final int index = incomingQueue.indexWhere((call) => call.id == callId);
     if (index == -1) return;
@@ -239,12 +366,8 @@ class CallAgentController extends GetxController {
     incomingQueue.removeAt(index);
     call.dispose();
 
-    final String timeDetail = isTimeout
-        ? 'Expired automatically (90s limit) • Just now'
-        : 'Cut by agent • Just now';
-
     final newHistoryItem = HistoryCallItemModel(
-      id: callId, // 🟢 बिना किसी मॉडिफिकेशन के डायरेक्ट कॉल आईडी का उपयोग
+      id: callId,
       name: call.name,
       avatarUrl: call.avatarUrl,
       callType: call.isVideoCall ? 'Video Call' : 'Audio Call',

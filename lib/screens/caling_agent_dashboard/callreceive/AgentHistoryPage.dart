@@ -15,10 +15,11 @@ class AgentHistoryPage extends StatefulWidget {
   const AgentHistoryPage({super.key});
 
   @override
-  State createState() => _AgentHistoryPageState();
+  State<AgentHistoryPage> createState() => _AgentHistoryPageState();
 }
 
-class _AgentHistoryPageState extends State with TickerProviderStateMixin {
+class _AgentHistoryPageState extends State<AgentHistoryPage>
+    with TickerProviderStateMixin {
   final CallAgentController controller = Get.put(CallAgentController());
   final ThemeController themeController = Get.find();
 
@@ -52,15 +53,12 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-
+    controller.fetchAndLoadCallHistory();
     // यहाँ से _addInitialCall वाले डमी डेटा पूरी तरह हटा दिए गए हैं।
   }
 
   @override
   void dispose() {
-    for (var call in controller.incomingQueue) {
-      call.dispose();
-    }
     _gradientController.dispose();
     _blinkController.dispose();
     _emptyStatePulseController.dispose();
@@ -121,14 +119,8 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
     }
   }
 
-  void _removeItemSmoothly(
-    IncomingCallItemModel call,
-    bool isAccepted, {
-    bool isTimeout = false,
-  }) async {
-    if (isTimeout) {
-      controller.handleCallTimeout(call.id);
-    } else if (isAccepted) {
+  void _removeItemSmoothly(IncomingCallItemModel call, bool isAccepted) async {
+    if (isAccepted) {
       // 🟢 1. पहले कंट्रोलर के जरिए Firebase पर 'accepted' अपडेट और क्यू से सफाई करें
       bool isSuccess = await controller.acceptCall(call.id);
 
@@ -149,6 +141,7 @@ class _AgentHistoryPageState extends State with TickerProviderStateMixin {
     } else {
       // 🔴 3. अगर डिलीट/रिजेक्ट किया है
       await controller.declineCall(call.id);
+      controller.fetchAndLoadCallHistory();
     }
 
     // एनिमेटेड लिस्ट से आइटम हटाने का UI एनीमेशन लॉजिक यहाँ रहेगा...

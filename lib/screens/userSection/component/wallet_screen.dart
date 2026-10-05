@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_background.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/screens/userSection/component/add_balance_popup.dart';
 
 class RechargePack {
@@ -43,6 +44,19 @@ class _WalletScreenState extends State<WalletScreen> {
   final TextEditingController _customAmountController = TextEditingController();
   double customAmountValue = 0.0;
   final ThemeController themeController = Get.find<ThemeController>();
+  double? _walletBalance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWalletBalance();
+  }
+
+  Future<void> _loadWalletBalance() async {
+    final apiService = UserApiService()..onInit();
+    final balance = await apiService.fetchCurrentWalletBalance();
+    if (mounted) setState(() => _walletBalance = balance);
+  }
 
   @override
   void dispose() {
@@ -239,7 +253,6 @@ class _WalletScreenState extends State<WalletScreen> {
         rowChildren.add(const SizedBox(width: 10));
         rowChildren.add(const Expanded(child: SizedBox()));
       }
-
       packRows.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -328,7 +341,8 @@ class _WalletScreenState extends State<WalletScreen> {
                                       ),
                                       const SizedBox(width: 2),
                                       Text(
-                                        '450.00',
+                                        _walletBalance?.toStringAsFixed(2) ??
+                                            '--',
                                         style: TextStyle(
                                           color: isDarkMode
                                               ? Colors.white

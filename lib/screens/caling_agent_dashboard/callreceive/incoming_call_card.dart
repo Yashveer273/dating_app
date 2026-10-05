@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/call_item_models.dart';
 
@@ -157,17 +156,12 @@ class IncomingCallCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    // Plain language countdown text for normal people / non-technical agents
-                    Obx(
-                      () => Text(
-                        call.timeDisplay.value,
-                        style: TextStyle(
-                          color: call.remainingSeconds.value <= 10
-                              ? Colors.redAccent
-                              : Colors.orange.shade800,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    Text(
+                      'Waiting for response',
+                      style: TextStyle(
+                        color: Colors.orange.shade800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],

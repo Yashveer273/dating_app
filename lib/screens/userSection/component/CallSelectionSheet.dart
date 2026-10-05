@@ -1,5 +1,5 @@
 // ==========================================
-// CallSelectionSheet.dart (Updated with Dots & Waiting Text)
+// CallSelectionSheet.dart (Updated without 90s timer & with Exit/Background Security)
 // ==========================================
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:talk24loves/Api/call_api_service.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/shared_call_screen.dart';
 
@@ -311,7 +312,7 @@ void _showRingingScreen({
 }
 
 // ==========================================
-// Call Ringing Screen (With Triple Dots Animation & Waiting Text)
+// Call Ringing Screen (Without 90s Timer & With Exit/Background Security)
 // ==========================================
 class CallRingingScreen extends StatefulWidget {
   final AgentModel agent;
@@ -328,19 +329,20 @@ class CallRingingScreen extends StatefulWidget {
 }
 
 class _CallRingingScreenState extends State<CallRingingScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   String? _roomId;
-  StreamSubscription<DocumentSnapshot>? _roomSubscription;
-  Timer? _countdownTimer;
-  int _remainingSeconds = 90;
+  StreamSubscription? _roomSubscription;
+  DateTime? _requestStartedAt;
   bool _isCallInitiated = false;
   bool _isDisconnecting = false;
+  bool _isCallAccepted = false;
 
   late AnimationController _dotController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _dotController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -350,17 +352,59 @@ class _CallRingingScreenState extends State<CallRingingScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _dotController.dispose();
-    _stopTimers();
+    _stopListeners();
     if (!_isCallInitiated && _roomId != null && !_isDisconnecting) {
-      _terminateCallAndCleanup(reason: "user_back_pressed");
+      _terminateCallAndCleanup(reason: "screen_disposed");
     }
     super.dispose();
   }
 
-  void _startCallProcess() async {
-    _startLocalCountdown();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Agar user app ko minimize karta hai ya background mein bhejta hai
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (!_isCallAccepted && !_isDisconnecting) {
+        _isDisconnecting = true;
+        _terminateCallAndCleanup(reason: "app_backgrounded");
+      }
+    }
+    super.didChangeAppLifecycleState(state);
+  }
 
+  void _startCallProcess() async {
+    final walletApi = UserApiService()..onInit();
+    final walletBalance = await walletApi.fetchCurrentWalletBalance();
+    if (!mounted) return;
+    if (walletBalance == null || walletBalance <= 0) {
+      Get.snackbar(
+        'Wallet unavailable',
+        'Could not verify your wallet balance. Please try again.',
+        snackPosition: SnackPosition.TOP,
+      );
+      _cleanupAndExit('Wallet balance unavailable.');
+      return;
+    }
+
+    final ratePerMinute = widget.callType == 'video'
+        ? widget.agent.pricePerMinute * 1.10
+        : widget.agent.pricePerMinute;
+    final maxDurationSeconds = ratePerMinute > 0
+        ? (walletBalance / ratePerMinute * 60).floor()
+        : 0;
+    if (maxDurationSeconds <= 0) {
+      Get.snackbar(
+        'Insufficient balance',
+        'Your wallet balance is not enough for this call.',
+        snackPosition: SnackPosition.TOP,
+      );
+      _cleanupAndExit('Insufficient wallet balance.');
+      return;
+    }
+
+    _requestStartedAt = DateTime.now();
     final result = await CallApiService.requestCall(
       callType: widget.callType,
       customAgentId: widget.agent.agentId,
@@ -379,6 +423,24 @@ class _CallRingingScreenState extends State<CallRingingScreen>
         return;
       }
 
+      try {
+        await FirebaseFirestore.instance.collection('rooms').doc(_roomId).set({
+          'maxDurationSeconds': maxDurationSeconds,
+          'walletBalanceAtCall': walletBalance,
+          'currentWalletBalance': walletBalance,
+          'ratePerMinute': ratePerMinute,
+          'remainingDurationSeconds': maxDurationSeconds,
+          'budgetUpdatedAt': FieldValue.serverTimestamp(),
+          'userMuted': false,
+          'agentMuted': false,
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Could not save wallet call limit: $e');
+        await _terminateCallAndCleanup(reason: 'wallet_limit_setup_failed');
+        _cleanupAndExit('Could not set the call time limit.');
+        return;
+      }
+
       _roomSubscription = FirebaseFirestore.instance
           .collection('rooms')
           .doc(_roomId)
@@ -392,12 +454,14 @@ class _CallRingingScreenState extends State<CallRingingScreen>
             }
 
             final data = snapshot.data();
-            if (data is! Map<String, dynamic>) return;
+            if (data is! Map) return;
 
-            final status = data['status']?.toString();
+            final status = data!['status']?.toString();
 
             if (status == 'accepted') {
-              _stopTimers();
+              if (_isCallAccepted || _isDisconnecting) return;
+              _isCallAccepted = true;
+              _stopListeners();
               if (!mounted) return;
 
               Navigator.pushReplacement(
@@ -408,12 +472,13 @@ class _CallRingingScreenState extends State<CallRingingScreen>
                     callType: widget.callType,
                     agentId: widget.agent.id,
                     isUserCaller: true,
+                    maxDurationSeconds: maxDurationSeconds,
+                    walletBalanceAtCall: walletBalance,
+                    ratePerMinute: ratePerMinute,
                   ),
                 ),
               );
-            } else if ((status == 'ended' ||
-                    status == 'rejected' ||
-                    status == 'timeout') &&
+            } else if ((status == 'ended' || status == 'rejected') &&
                 !_isDisconnecting) {
               _cleanupAndExit("Call ended.");
             }
@@ -431,45 +496,108 @@ class _CallRingingScreenState extends State<CallRingingScreen>
     }
   }
 
-  void _startLocalCountdown() {
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        if (mounted) {
-          setState(() {
-            _remainingSeconds--;
-          });
-        }
-      } else {
-        _stopTimers();
-        _handleTimeout();
-      }
-    });
+  // 🟢 Back button dabane par confirmation dialog aur security check
+  Future<bool> _onWillPop() async {
+    if (_isCallAccepted) return false;
+    if (_isDisconnecting) return true;
+
+    final shouldLeave = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkCard,
+        title: const Text(
+          "Cancel Call?",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Kya aap call cancel karna chahte hain?",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("No", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryPink,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              "Yes, Cancel",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLeave == true) {
+      setState(() {
+        _isDisconnecting = true;
+      });
+      await _terminateCallAndCleanup(reason: "user_cancelled");
+      return true;
+    }
+    return false;
   }
 
-  void _handleTimeout() async {
-    if (_isDisconnecting) return;
-    setState(() {
-      _isDisconnecting = true;
-    });
-    await _terminateCallAndCleanup(reason: "user_timeout");
-    _cleanupAndExit("Call timed out. No response from agent.");
-  }
-
+  // Red Cut Call button press hone par
   void _cancelCall() async {
     if (_isDisconnecting) return;
 
+    final shouldLeave = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkCard,
+        title: const Text(
+          "Cancel Call?",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Kya aap call cancel karna chahte hain?",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("No", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryPink,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              "Yes, Cancel",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLeave != true) return;
+
     setState(() {
       _isDisconnecting = true;
     });
 
-    _stopTimers();
+    _stopListeners();
     await _terminateCallAndCleanup(reason: "user_cancelled");
     _cleanupAndExit("Call cancelled.");
   }
 
-  Future<void> _terminateCallAndCleanup({required String reason}) async {
+  Future _terminateCallAndCleanup({required String reason}) async {
     if (_roomId != null && _roomId!.isNotEmpty) {
+      final endTime = DateTime.now();
+      final startTime = _requestStartedAt ?? endTime;
+      final durationInSeconds = endTime
+          .difference(startTime)
+          .inSeconds
+          .clamp(0, 1 << 31)
+          .toInt();
+
       try {
         await FirebaseFirestore.instance
             .collection('rooms')
@@ -478,6 +606,9 @@ class _CallRingingScreenState extends State<CallRingingScreen>
               'status': 'ended',
               'endedBy': reason,
               'disconnectedAt': FieldValue.serverTimestamp(),
+              'startTimeMs': startTime.millisecondsSinceEpoch,
+              'endTimeMs': endTime.millisecondsSinceEpoch,
+              'durationInSeconds': durationInSeconds,
             });
       } catch (e) {
         debugPrint("Error updating room on termination: $e");
@@ -489,6 +620,9 @@ class _CallRingingScreenState extends State<CallRingingScreen>
           agentId: widget.agent.id,
           endedBy: reason,
           disconnectReason: reason,
+          startTime: startTime,
+          endTime: endTime,
+          durationInSeconds: durationInSeconds,
         );
       } catch (e) {
         debugPrint("Error ending call via API: $e");
@@ -496,13 +630,12 @@ class _CallRingingScreenState extends State<CallRingingScreen>
     }
   }
 
-  void _stopTimers() {
-    _countdownTimer?.cancel();
+  void _stopListeners() {
     _roomSubscription?.cancel();
   }
 
   void _cleanupAndExit(String message) {
-    _stopTimers();
+    _stopListeners();
     if (!mounted) return;
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
@@ -533,7 +666,7 @@ class _CallRingingScreenState extends State<CallRingingScreen>
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async => !_isDisconnecting,
+      onWillPop: _onWillPop,
       child: Scaffold(
         backgroundColor: Colors.black87,
         body: SafeArea(
@@ -555,18 +688,8 @@ class _CallRingingScreenState extends State<CallRingingScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Yahan par ab loader ki jagah "Waiting for the response..." aur triple dots animation aayega
+                // Triple dots animation with waiting status
                 _buildTripleDots(),
-                const SizedBox(height: 16),
-                if (!_isDisconnecting)
-                  Text(
-                    "Timeout in: ${_remainingSeconds}s",
-                    style: const TextStyle(
-                      color: Colors.orangeAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                 const SizedBox(height: 80),
                 Opacity(
                   opacity: _isDisconnecting ? 0.6 : 1.0,

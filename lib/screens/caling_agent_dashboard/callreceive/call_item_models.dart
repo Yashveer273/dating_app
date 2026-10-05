@@ -8,13 +8,13 @@ class IncomingCallItemModel {
   final String avatarUrl;
   final bool isVideoCall;
   RxBool isBrandNew;
-
-  // Reactive fields
-  late final RxInt remainingSeconds;
-  late final RxString timeDisplay;
-  Timer? _countdownTimer;
-
   VoidCallback? onTimeout;
+  Timer? _acceptTimeoutTimer;
+  DateTime? _timeoutDeadline;
+  Duration _remainingAcceptTime = Duration.zero;
+  bool _timeoutPaused = false;
+  bool _timeoutStopped = false;
+  bool _timeoutFired = false;
 
   IncomingCallItemModel({
     required this.id,
@@ -22,31 +22,53 @@ class IncomingCallItemModel {
     required this.avatarUrl,
     required this.isVideoCall,
     bool isBrandNew = false,
-    int initialDurationSeconds = 90, // यहाँ 90 सेकंड सेट कर दिया गया है
+    int initialDurationSeconds = 90,
     this.onTimeout,
   }) : isBrandNew = isBrandNew.obs {
-    remainingSeconds = initialDurationSeconds.obs;
-    timeDisplay = '${initialDurationSeconds}s left to accept'.obs;
-    _startTimer();
+    _remainingAcceptTime = Duration(seconds: initialDurationSeconds);
+    _startAcceptTimeoutTimer();
   }
 
-  void _startTimer() {
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (remainingSeconds.value > 0) {
-        remainingSeconds.value--;
-        timeDisplay.value = '${remainingSeconds.value}s left to accept';
-      } else {
-        _countdownTimer?.cancel();
-        if (onTimeout != null) {
-          onTimeout!();
-        }
-      }
+  void _startAcceptTimeoutTimer() {
+    if (_timeoutStopped ||
+        _timeoutPaused ||
+        _timeoutFired ||
+        onTimeout == null) {
+      return;
+    }
+
+    _timeoutDeadline = DateTime.now().add(_remainingAcceptTime);
+    _acceptTimeoutTimer = Timer(_remainingAcceptTime, () {
+      if (_timeoutStopped || _timeoutPaused || _timeoutFired) return;
+      _timeoutFired = true;
+      _timeoutStopped = true;
+      onTimeout?.call();
     });
   }
 
-  void dispose() {
-    _countdownTimer?.cancel();
+  void pauseAcceptTimeout() {
+    if (_timeoutStopped || _timeoutPaused) return;
+    final deadline = _timeoutDeadline;
+    if (deadline != null) {
+      final remaining = deadline.difference(DateTime.now());
+      _remainingAcceptTime = remaining.isNegative ? Duration.zero : remaining;
+    }
+    _timeoutPaused = true;
+    _acceptTimeoutTimer?.cancel();
   }
+
+  void resumeAcceptTimeout() {
+    if (_timeoutStopped || !_timeoutPaused) return;
+    _timeoutPaused = false;
+    _startAcceptTimeoutTimer();
+  }
+
+  void cancelAcceptTimeout() {
+    _timeoutStopped = true;
+    _acceptTimeoutTimer?.cancel();
+  }
+
+  void dispose() => cancelAcceptTimeout();
 }
 
 class HistoryCallItemModel {

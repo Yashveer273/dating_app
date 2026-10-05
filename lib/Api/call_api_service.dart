@@ -69,8 +69,20 @@ class CallApiService {
     required String agentId,
     required String endedBy,
     required String disconnectReason,
+    DateTime? startTime,
+    DateTime? endTime,
+    int? durationInSeconds,
   }) async {
     try {
+      final resolvedEndTime = endTime ?? DateTime.now();
+      final resolvedStartTime = startTime ?? resolvedEndTime;
+      final resolvedDuration =
+          durationInSeconds ??
+          resolvedEndTime
+              .difference(resolvedStartTime)
+              .inSeconds
+              .clamp(0, 1 << 31)
+              .toInt();
       final response = await http.post(
         Uri.parse('$baseUrl/end'),
         body: jsonEncode({
@@ -78,6 +90,9 @@ class CallApiService {
           'agentId': agentId,
           'endedBy': endedBy,
           'disconnectReason': disconnectReason,
+          'startTimeMs': resolvedStartTime.millisecondsSinceEpoch,
+          'endTimeMs': resolvedEndTime.millisecondsSinceEpoch,
+          'durationInSeconds': resolvedDuration,
         }),
         headers: {"Content-Type": "application/json"},
       );
