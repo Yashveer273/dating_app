@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:talk24loves/Api/AppConfig.dart';
 import 'package:talk24loves/components/DottedWaveLoader.dart';
 
 import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
@@ -10,6 +11,9 @@ import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayser
 import 'package:flutter_cashfree_pg_sdk/api/cfsession/cfsession.dart';
 import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
 import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
+
+import 'screens/caling_agent_dashboard/component/user_storage.dart';
+import 'screens/userSection/model/user_model.dart';
 
 class CashfreePayButton extends StatefulWidget {
   final double payableAmount;
@@ -35,7 +39,7 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
 
   bool isLoading = false;
 
-  final String baseUrl = 'http://192.168.1.11:3000';
+  final String baseUrl = AppConfig.rootBaseUrl;
 
   @override
   void initState() {
@@ -43,6 +47,7 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
     cfPaymentGatewayService.setCallback(verifyPayment, onError);
   }
 
+  final UserModel? user = UserStorage.getUser();
   Future<void> createPayment() async {
     if (!mounted) return;
 
@@ -53,10 +58,10 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
     try {
       final body = {
         'amount': widget.payableAmount,
-        'customerId': 'customer_001',
-        'customerName': 'Test Customer',
-        'customerEmail': 'test@example.com',
-        'customerPhone': '9999999999',
+        'customerId': user?.id,
+        'customerName': user?.name,
+
+        'customerPhone': user?.phoneNumber,
       };
 
       if (widget.couponDetails != null) {

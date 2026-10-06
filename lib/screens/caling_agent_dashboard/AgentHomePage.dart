@@ -6,8 +6,11 @@ import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/CallAgentController.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/incoming_call_card.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentProfilePage.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/CallActionHandler.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentProfileModel.dart';
 
 class AgentHomePage extends StatefulWidget {
@@ -17,9 +20,34 @@ class AgentHomePage extends StatefulWidget {
   State createState() => _AgentHomePageState();
 }
 
-class _AgentHomePageState extends State {
+class _AgentHomePageState extends State with TickerProviderStateMixin {
   final AgentMainController controller = Get.find();
   final ThemeController themeController = Get.find();
+  final CallAgentController callController = Get.put(CallAgentController());
+
+  late final AnimationController _gradientController;
+  late final AnimationController _blinkController;
+
+  @override
+  void initState() {
+    super.initState();
+    _gradientController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _gradientController.dispose();
+    _blinkController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +115,8 @@ class _AgentHomePageState extends State {
                             const SizedBox(height: 2),
                             Obx(
                               () => Text(
-                                '\$${controller.currentEarnings.value.toStringAsFixed(2)}',
+                                controller.currentEarnings.value
+                                    .toStringAsFixed(2),
                                 style: TextStyle(
                                   color: primaryText,
                                   fontSize: 16,
@@ -336,7 +365,39 @@ class _AgentHomePageState extends State {
                       }),
 
                       const SizedBox(height: 18),
+                      Obx(() {
+                        if (callController.incomingQueue.isEmpty) {
+                          return const SizedBox.shrink(); // अगर कोई कॉल नहीं है तो कुछ नहीं दिखेगा
+                        }
 
+                        // सबसे पहली आने वाली लाइव कॉल को यहाँ फेच किया जा रहा है
+                        final callItem = callController.incomingQueue.first;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0),
+                          child: IncomingCallCard(
+                            call: callItem,
+                            isTopPriority: true,
+                            isDarkMode: isDarkMode,
+                            cardBg: cardBg,
+                            gradientController: _gradientController,
+                            blinkController: _blinkController,
+
+                            // 🟢 एक्सेप्ट करने पर सीधे हैंडलर कॉल होगा
+                            onAccept: () {
+                              CallActionHandler.handleAcceptCall(
+                                context,
+                                callItem,
+                              );
+                            },
+
+                            // 🔴 डिक्लेइन/रिजेक्ट करने पर सीधे हैंडलर कॉल होगा
+                            onDelete: () {
+                              CallActionHandler.handleDeclineCall(callItem);
+                            },
+                          ),
+                        );
+                      }),
                       // Feature Cards Grid (Video/Live/Audio)
                       SizedBox(
                         height: 110,

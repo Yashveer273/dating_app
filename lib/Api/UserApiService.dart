@@ -1,5 +1,10 @@
 import 'package:get/get.dart';
 import 'package:talk24loves/Api/AppConfig.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/agent_model.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/agent_storage.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
+
+import 'package:talk24loves/screens/userSection/model/user_model.dart';
 
 class UserApiService extends GetConnect {
   final String _userEndpoint = "${AppConfig.rootBaseUrl}/api/userApp/admin";
@@ -107,23 +112,60 @@ class UserApiService extends GetConnect {
       print("Verify OTP Status: ${response.statusCode}");
       print("Verify OTP Response: ${response.body}");
 
-      if (response.body is Map) {
-        return Map<String, dynamic>.from(response.body);
+      if (response.body is! Map) {
+        return {
+          'success': false,
+          'message': 'Invalid server response',
+          'statusCode': response.statusCode,
+          'rawResponse': response.body,
+        };
       }
 
-      return {
-        'success': false,
-        'message': 'Invalid server response',
-        'statusCode': response.statusCode,
-        'rawResponse': response.body,
-      };
+      final Map<String, dynamic> data = Map<String, dynamic>.from(
+        response.body,
+      );
+
+      if (data['success'] == true) {
+        final String? role = data['role']?.toString();
+
+        if (role == 'user') {
+          final userData = data['existingUser'];
+
+          if (userData is Map) {
+            final userModel = UserModel.fromJson(
+              Map<String, dynamic>.from(userData),
+              role!,
+            );
+
+            await UserStorage.saveUser(userModel);
+
+            print('User model stored successfully');
+          }
+        } else if (role == 'agent') {
+          final agentData = data['existingAgent'];
+
+          if (agentData is Map) {
+            final agentJson = Map<String, dynamic>.from(agentData);
+
+            agentJson['role'] = role;
+
+            final agentModel = AgentModel.fromJson(agentJson);
+
+            await AgentStorage.saveAgent(agentModel);
+
+            print('Agent model stored successfully');
+          }
+        }
+      }
+
+      return data;
     } catch (e) {
       print("Error verifying OTP: $e");
 
       return {'success': false, 'message': e.toString()};
     }
-  }
-  // ==========================================
+  } // ==========================================
+
   // 3. SELECT GENDER & REGISTER
   // POST /api/commonAuth/select-gender
   //
@@ -136,6 +178,104 @@ class UserApiService extends GetConnect {
   // male   -> User
   // female -> Agent
   // ==========================================
+  Future fetchUserProfile() async {
+    String userId = AppConfig.user?.id ?? "";
+    try {
+      if (userId.isNotEmpty) {
+        final response = await get(
+          '${AppConfig.rootBaseUrl}/api/user/profile/$userId',
+          // अपने बैकएंड का सही एंडपॉइंट यहाँ दें
+          headers: {'Content-Type': 'application/json'},
+        );
+
+        if (response.body["success"]) {
+          final data = response.body;
+          print("User Profile Data: ${response.body["success"]}");
+          final userJson = data['data'];
+          print("User JSON: $userJson");
+          final userModel = UserModel.fromJson(
+            Map<String, dynamic>.from(userJson),
+            "user",
+          );
+          print("User Model: ${userModel.walletBalance} ");
+          await UserStorage.saveUser(userModel);
+
+          return userModel;
+        } else {
+          print("Failed to load user profile: ${response.statusCode}");
+          return null;
+        }
+      } else {
+        print("User ID is empty. Cannot fetch profile.");
+        return null;
+      }
+    } catch (e) {
+      print("Error fetching user profile: $e");
+      return null;
+    }
+  }
+
+  Future<bool> updateUserName(String name) async {
+    final userId = AppConfig.user?.id ?? "";
+
+    if (userId.isEmpty) {
+      print("User ID is empty. Cannot update profile name.");
+      return false;
+    }
+
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/user/profile/$userId',
+        {'name': name},
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode != 200 || response.body is! Map) {
+        print(
+          "Failed to update profile name: ${response.statusCode}, ${response.body}",
+        );
+        return false;
+      }
+
+      final responseData = Map<String, dynamic>.from(response.body);
+      if (responseData['success'] != true) {
+        print("Profile update failed: $responseData");
+        return false;
+      }
+
+      final currentUser = AppConfig.user;
+      if (currentUser == null) {
+        return false;
+      }
+
+      final updatedUser = UserModel(
+        id: currentUser.id,
+        role: currentUser.role,
+        phoneNumber: currentUser.phoneNumber,
+        phoneVerified: currentUser.phoneVerified,
+        name: name,
+        avatar: currentUser.avatar,
+        walletBalance: currentUser.walletBalance,
+        audioCallTimeMinutes: currentUser.audioCallTimeMinutes,
+        videoCallTimeMinutes: currentUser.videoCallTimeMinutes,
+        status: currentUser.status,
+        gender: currentUser.gender,
+        matches: currentUser.matches,
+        profileCompleted: currentUser.profileCompleted,
+        fcmToken: currentUser.fcmToken,
+        lastLoginAt: currentUser.lastLoginAt,
+        firebaseLocation: currentUser.firebaseLocation,
+        createdAt: currentUser.createdAt,
+        updatedAt: currentUser.updatedAt,
+      );
+
+      await UserStorage.saveUser(updatedUser);
+      return true;
+    } catch (e) {
+      print("Error updating profile name: $e");
+      return false;
+    }
+  }
 
   Future<Map<String, dynamic>?> selectGender({
     required String phoneNumber,
@@ -177,7 +317,8 @@ class UserApiService extends GetConnect {
     int limit = 10,
     DateTime? selectedDate,
   }) async {
-    String userId = "6ac1f8287e2785484262329d";
+    String userId = AppConfig.user?.id ?? "";
+
     try {
       // Format date natively in YYYY-MM-DD format without needing external packages
       String? formattedDate;
@@ -234,7 +375,7 @@ class UserApiService extends GetConnect {
     int limit = 10,
     DateTime? selectedDate,
   }) async {
-    String userId = "D8D95EE5";
+    String userId = AppConfig.agent?.agentId ?? "";
     try {
       // Format date natively in YYYY-MM-DD format without needing external packages
       String? formattedDate;

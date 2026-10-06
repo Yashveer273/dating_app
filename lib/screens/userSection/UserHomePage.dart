@@ -3,20 +3,46 @@
 // ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/AppConfig.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/components/app_background.dart';
+import 'package:talk24loves/screens/userSection/UserProfileScreen.dart';
+
 import 'package:talk24loves/screens/userSection/component/UserHomeController.dart';
-import 'package:talk24loves/screens/userSection/model/AgentModel.dart';
+import 'package:talk24loves/screens/userSection/model/AgentListModel.dart';
 import 'package:talk24loves/screens/userSection/component/AgentCardWidget.dart';
 import 'package:talk24loves/screens/userSection/component/CallSelectionSheet.dart';
+import 'package:talk24loves/screens/userSection/model/user_model.dart';
 
-class UserHomePage extends StatelessWidget {
+class UserHomePage extends StatefulWidget {
   UserHomePage({super.key});
 
-  final UserHomeController controller = Get.put(UserHomeController());
-  final ThemeController themeController = Get.find();
+  static final UserModel? user = AppConfig.user;
 
+  @override
+  State<UserHomePage> createState() => _UserHomePageState();
+}
+
+class _UserHomePageState extends State<UserHomePage> {
+  final UserHomeController controller = Get.put(UserHomeController());
+  double? _walletBalance;
+  final ThemeController themeController = Get.find();
+  @override
+  void initState() {
+    super.initState();
+    _loadWalletBalance();
+  }
+
+  Future<void> _loadWalletBalance() async {
+    final apiService = UserApiService()..onInit();
+    final balance = await apiService.fetchCurrentWalletBalance();
+
+    if (mounted) setState(() => _walletBalance = balance);
+  }
+
+  static final UserModel? user = AppConfig.user;
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = themeController.isDarkMode;
@@ -152,7 +178,7 @@ class UserHomePage extends StatelessWidget {
                   ),
                 ),
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(
                       Icons.account_balance_wallet_rounded,
                       size: 14,
@@ -160,7 +186,7 @@ class UserHomePage extends StatelessWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      '₹ 120.00',
+                      '₹ ${_walletBalance ?? 0.0}',
                       style: TextStyle(
                         color: AppColors.primaryPink,
                         fontSize: 12.5,
@@ -171,17 +197,30 @@ class UserHomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primaryPink, width: 1.5),
-                  image: const DecorationImage(
-                    image: NetworkImage(
-                      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+              GestureDetector(
+                onTap: () {
+                  // 🟢 यहाँ अपना प्रोफाइल पेज नेविगेशन लिखें
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          UserProfileScreen(), // अपना प्रोफाइल स्क्रीन विजेट यहाँ पास करें
                     ),
-                    fit: BoxFit.cover,
+                  );
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.primaryPink,
+                      width: 1.5,
+                    ),
+                    image: DecorationImage(
+                      image: NetworkImage(user?.avatar ?? ""),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),

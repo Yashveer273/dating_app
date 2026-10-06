@@ -3,7 +3,7 @@
 // ==========================================
 import 'package:get/get.dart';
 import 'package:talk24loves/Api/UserApiService.dart';
-import 'package:talk24loves/screens/userSection/model/AgentModel.dart';
+import 'package:talk24loves/screens/userSection/model/AgentListModel.dart';
 
 class UserHomeController extends GetxController {
   final RxList categories = [CategoryModel(id: '0', name: 'All')].obs;

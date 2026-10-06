@@ -5,9 +5,9 @@ import 'package:talk24loves/Api/AppConfig.dart';
 
 class CallApiService {
   static const String baseUrl = "${AppConfig.rootBaseUrl}/api/call";
+  static String staticUserId = AppConfig.user?.id ?? "";
 
-  static const String staticUserId = "6ac1f8287e2785484262329d";
-  static const String staticAgentId = "D8D95EE5";
+  static String staticAgentId = AppConfig.agent?.agentId ?? "";
 
   static Future<Map<String, dynamic>> requestCall({
     required String callType,
@@ -21,7 +21,7 @@ class CallApiService {
         Uri.parse('$baseUrl/request'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "userId": customUserId ?? staticUserId,
+          "userId": staticUserId,
           "agentId": customAgentId ?? staticAgentId,
           "callType": callType,
           "userName": customUserName ?? "Test User",
@@ -41,7 +41,8 @@ class CallApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> acceptCall({
+  static Future<Map<String, dynamic>> acceptCall(
+    String id, {
     required String roomId,
     String? customAgentId,
   }) async {

@@ -2,9 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/AppConfig.dart';
 import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
+import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/screens/userSection/model/user_model.dart';
 
 class CallHistoryPage extends StatefulWidget {
   const CallHistoryPage({super.key});
@@ -16,11 +19,11 @@ class CallHistoryPage extends StatefulWidget {
 class _CallHistoryPageState extends State {
   final UserApiService _apiService = UserApiService();
   final ThemeController themeController = Get.find();
-
+  static final UserModel? user = AppConfig.user;
   bool _isLoading = true;
   bool _isLoadingMore = false;
   List _historyList = [];
-  Map? _userInfo;
+
   num _walletBalance = 0;
 
   // Pagination variables
@@ -72,7 +75,6 @@ class _CallHistoryPageState extends State {
     if (response != null && response['success'] == true) {
       setState(() {
         _walletBalance = response['currentWalletBalance'] ?? 0;
-        _userInfo = response['userInfo'];
 
         final pagination = response['pagination'];
 
@@ -198,229 +200,234 @@ class _CallHistoryPageState extends State {
             ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryPink),
-            )
-          : Column(
-              children: [
-                // Header Profile & Wallet Info Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.pinkGradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryPink.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundImage: NetworkImage(
-                          _userInfo?['avatar'] ??
-                              "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
+      body: AppBackground(
+        isDarkMode: isDarkMode,
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryPink),
+              )
+            : Column(
+                children: [
+                  // Header Profile & Wallet Info Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.pinkGradient,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryPink.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundImage: NetworkImage(user!.avatar ?? ""),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user!.name ?? "Unkown",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _selectedDate != null
+                                    ? "Filtered: ${_selectedDate!.day.toString().padLeft(2, '0')}/"
+                                          "${_selectedDate!.month.toString().padLeft(2, '0')}/"
+                                          "${_selectedDate!.year}"
+                                    : "Call history",
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              _userInfo?['name'] ?? "Valued User",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            const Text(
+                              "Wallet Balance",
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
-                              _selectedDate != null
-                                  ? "Filtered: ${_selectedDate!.day.toString().padLeft(2, '0')}/"
-                                        "${_selectedDate!.month.toString().padLeft(2, '0')}/"
-                                        "${_selectedDate!.year}"
-                                  : "Call history",
+                              "₹$_walletBalance",
                               style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            "Wallet Balance",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "₹$_walletBalance",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // History List Ledger
-                Expanded(
-                  child: _historyList.isEmpty
-                      ? Center(
-                          child: Text(
-                            "No call history found.",
-                            style: TextStyle(
-                              color: isDarkMode
-                                  ? AppColors.darkSecondaryText
-                                  : AppColors.lightSecondaryText,
+                  // History List Ledger
+                  Expanded(
+                    child: _historyList.isEmpty
+                        ? Center(
+                            child: Text(
+                              "No call history found.",
+                              style: TextStyle(
+                                color: isDarkMode
+                                    ? AppColors.darkSecondaryText
+                                    : AppColors.lightSecondaryText,
+                              ),
                             ),
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount:
-                              _historyList.length + (_isLoadingMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _historyList.length) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: CircularProgressIndicator(
-                                    color: AppColors.primaryPink,
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount:
+                                _historyList.length + (_isLoadingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == _historyList.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.primaryPink,
+                                    ),
                                   ),
+                                );
+                              }
+
+                              final call = _historyList[index];
+
+                              final bool isVideo = call['callType'] == 'video';
+
+                              final String formattedTime = _formatCallDate(
+                                call['createdAt'],
+                              );
+
+                              final String callStatus =
+                                  call['disconnectReason'];
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? AppColors.darkCard
+                                      : AppColors.lightCard,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isDarkMode
+                                        ? AppColors.darkBorder
+                                        : AppColors.lightBorder,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: isVideo
+                                            ? AppColors.pinkLight.withOpacity(
+                                                0.2,
+                                              )
+                                            : AppColors.otpSuccessGreen
+                                                  .withOpacity(0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isVideo ? Icons.videocam : Icons.call,
+                                        color: isVideo
+                                            ? AppColors.primaryPink
+                                            : AppColors.otpSuccessGreen,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                "${call['callType'].toString().toUpperCase()} CALL",
+                                                style: TextStyle(
+                                                  color: isDarkMode
+                                                      ? AppColors
+                                                            .darkPrimaryText
+                                                      : AppColors
+                                                            .lightPrimaryText,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              Text(
+                                                "-₹${call['totalCostDeducted']}",
+                                                style: const TextStyle(
+                                                  color: AppColors.primaryPink,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            formattedTime,
+                                            style: TextStyle(
+                                              color: isDarkMode
+                                                  ? AppColors.darkSecondaryText
+                                                  : AppColors
+                                                        .lightSecondaryText,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              _badge(
+                                                label:
+                                                    "${call['durationInSeconds']}s duration",
+                                                color: Colors.blueAccent,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              _badge(
+                                                label: callStatus,
+                                                color: Colors.orangeAccent,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               );
-                            }
-
-                            final call = _historyList[index];
-
-                            final bool isVideo = call['callType'] == 'video';
-
-                            final String formattedTime = _formatCallDate(
-                              call['createdAt'],
-                            );
-
-                            final String callStatus = call['disconnectReason'];
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isDarkMode
-                                    ? AppColors.darkCard
-                                    : AppColors.lightCard,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isDarkMode
-                                      ? AppColors.darkBorder
-                                      : AppColors.lightBorder,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: isVideo
-                                          ? AppColors.pinkLight.withOpacity(0.2)
-                                          : AppColors.otpSuccessGreen
-                                                .withOpacity(0.2),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      isVideo ? Icons.videocam : Icons.call,
-                                      color: isVideo
-                                          ? AppColors.primaryPink
-                                          : AppColors.otpSuccessGreen,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              "${call['callType'].toString().toUpperCase()} CALL",
-                                              style: TextStyle(
-                                                color: isDarkMode
-                                                    ? AppColors.darkPrimaryText
-                                                    : AppColors
-                                                          .lightPrimaryText,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            Text(
-                                              "-₹${call['totalCostDeducted']}",
-                                              style: const TextStyle(
-                                                color: AppColors.primaryPink,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          formattedTime,
-                                          style: TextStyle(
-                                            color: isDarkMode
-                                                ? AppColors.darkSecondaryText
-                                                : AppColors.lightSecondaryText,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Row(
-                                          children: [
-                                            _badge(
-                                              label:
-                                                  "${call['durationInSeconds']}s duration",
-                                              color: Colors.blueAccent,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            _badge(
-                                              label: callStatus,
-                                              color: Colors.orangeAccent,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+                            },
+                          ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 

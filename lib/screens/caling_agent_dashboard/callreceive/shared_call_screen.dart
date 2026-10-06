@@ -1,6 +1,7 @@
 // views/shared_call_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/SharedCallController.dart';
 
@@ -115,144 +116,16 @@ class _SharedCallScreenState extends State<SharedCallScreen>
     super.dispose();
   }
 
-  Widget _buildCallInfoPanel() {
-    final estimatedBalance = _controller.estimatedWalletBalance;
-    final remainingSeconds = _controller.remainingCallSeconds;
-    final endingSoon =
-        remainingSeconds != null &&
-        remainingSeconds <= 60 &&
-        remainingSeconds > 0;
-
-    Widget metricRow({
-      required IconData icon,
-      required String label,
-      required Widget value,
-      Color color = Colors.white70,
-    }) {
-      return Row(
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          value,
-        ],
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xE61E1E24),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.pinkLight.withOpacity(0.28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.24),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF61D6A5),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 7),
-              const Text(
-                'LIVE CALL',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                _controller.formatTime(_controller.secondsElapsed),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          if (estimatedBalance != null) ...[
-            const SizedBox(height: 9),
-            Divider(height: 1, color: Colors.white.withOpacity(0.12)),
-            const SizedBox(height: 8),
-            metricRow(
-              icon: Icons.account_balance_wallet_outlined,
-              label: 'Wallet balance',
-              value: Text(
-                '₹${estimatedBalance.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-          if (remainingSeconds != null) ...[
-            const SizedBox(height: 7),
-            metricRow(
-              icon: Icons.hourglass_bottom_rounded,
-              label: 'Time remaining',
-              color: endingSoon ? Colors.orangeAccent : AppColors.pinkLight,
-              value: ScaleTransition(
-                scale: _endingPulse,
-                child: Text(
-                  _controller.formatTime(remainingSeconds),
-                  style: TextStyle(
-                    color: endingSoon ? Colors.orangeAccent : Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            if (endingSoon) ...[
-              const SizedBox(height: 5),
-              const Text(
-                'Call ending soon',
-                style: TextStyle(
-                  color: Colors.orangeAccent,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
+  // views/shared_call_screen.dart mein video placeholders ko update karein:
 
   Widget _buildVideoPlaceholder({
     required bool isCameraOff,
     required bool isMuted,
     required String label,
+    required RTCVideoRenderer renderer,
+    required bool isRemote,
   }) {
+    // Agar camera off hai ya remote ki taraf se camera off kiya gaya hai
     if (isCameraOff) {
       return Container(
         decoration: const BoxDecoration(
@@ -315,50 +188,13 @@ class _SharedCallScreenState extends State<SharedCallScreen>
       );
     }
 
-    return Container(
-      color: AppColors.darkBgMid,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                const CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.darkCard,
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                    color: AppColors.pinkLight,
-                  ),
-                ),
-                if (isMuted)
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.redAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.mic_off,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+    // 🟢 Real-time WebRTC Video View Display
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(isRemote ? 16 : 0),
+      child: RTCVideoView(
+        renderer,
+        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+        mirror: !isRemote, // Local camera mirror enable karein
       ),
     );
   }
@@ -420,12 +256,16 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                         isCameraOff: _controller.isCameraOff,
                         isMuted: _controller.isMuted,
                         label: "You",
+                        renderer: _controller.localRenderer,
+                        isRemote: false,
                       )
                     : _callType == 'video'
                     ? _buildVideoPlaceholder(
                         isCameraOff: _controller.isRemoteCameraOff,
                         isMuted: _controller.isRemoteMuted,
                         label: "Match",
+                        renderer: _controller.remoteRenderer,
+                        isRemote: true,
                       )
                     : _buildAudioCallUI(),
               ),
@@ -489,21 +329,53 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                               isCameraOff: _controller.isRemoteCameraOff,
                               isMuted: _controller.isRemoteMuted,
                               label: "Match",
+                              renderer: _controller
+                                  .remoteRenderer, // 🟢 Remote renderer yahan pass hoga
+                              isRemote: true,
                             )
                           : _buildVideoPlaceholder(
                               isCameraOff: _controller.isCameraOff,
                               isMuted: _controller.isMuted,
                               label: "You",
+                              renderer: _controller
+                                  .localRenderer, // 🟢 Local renderer yahan pass hoga
+                              isRemote: false,
                             ),
                     ),
                   ),
                 ),
-              Positioned(
-                top: 20,
-                left: 20,
-                right: _callType == 'video' ? 140 : 20,
-                child: _buildCallInfoPanel(),
-              ),
+              // 🟢 Video call ke liye screen ke center/overlay par dikhane wala zero-starting timer widget
+              if (_callType == 'video')
+                Positioned(
+                  top:
+                      100, // Ise apne hisab se upar ya neeche adjust kar sakte hain
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24, width: 1),
+                      ),
+                      child: Text(
+                        _controller.formatTime(_controller.secondsElapsed),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // 🟢 1. अगर सामने वाला (Remote) म्यूट है
+              // 🟢 सिर्फ तब दिखेगा जब सामने वाला (Remote User) म्यूट होगा,
+              // और यह मैसेज बिल्कुल सही पर्सन की स्क्रीन पर जाएगा (Opposite direction में)
               if (_controller.isRemoteMuted)
                 Positioned(
                   top: _callType == 'video' ? 195 : 150,
@@ -532,6 +404,9 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                           ),
                           const SizedBox(width: 7),
                           Text(
+                            // 🟢 यहाँ ध्यान दें:
+                            // अगर यूजर कॉलर है और रिमोट (एजेंट) म्यूट है, तो 'Agent is muted' दिखेगा।
+                            // अगर एजेंट की तरफ से देखा जा रहा है और रिमोट (यूजर) म्यूट है, तो 'User is muted' दिखेगा।
                             _isUserCaller ? 'Agent is muted' : 'User is muted',
                             style: const TextStyle(
                               color: Colors.white,
@@ -623,7 +498,7 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                           backgroundColor: _controller.isMuted
                               ? AppColors.primaryPink
                               : AppColors.darkCard,
-                          onPressed: () => _controller.toggleMute(),
+                          onPressed: () => _controller.toggleMuted(),
                           child: Icon(
                             _controller.isMuted ? Icons.mic_off : Icons.mic,
                             color: Colors.white,

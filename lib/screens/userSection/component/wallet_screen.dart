@@ -55,6 +55,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _loadWalletBalance() async {
     final apiService = UserApiService()..onInit();
     final balance = await apiService.fetchCurrentWalletBalance();
+
     if (mounted) setState(() => _walletBalance = balance);
   }
 
