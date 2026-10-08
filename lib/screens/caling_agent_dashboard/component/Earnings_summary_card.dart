@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/EarningsDashboardPage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/ledger_controller.dart.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/withdrawal_pages.dart';
 
 String formatCurrency(double amount) {
   if (amount >= 100000) {

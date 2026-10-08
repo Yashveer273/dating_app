@@ -11,6 +11,8 @@ class AgentProfileModel {
   final List topics;
   final List languages;
   final String agentId;
+  final String location;
+  final double rating;
 
   // एक स्टैटिक करंट मॉडल इंस्टेंस ताकि पेज सीधे मॉडल से डेटा ले सके
   static AgentProfileModel? current;
@@ -25,6 +27,8 @@ class AgentProfileModel {
     required this.topics,
     required this.languages,
     required this.agentId,
+    required this.location,
+    required this.rating,
   });
 
   factory AgentProfileModel.fromJson(Map json) {
@@ -38,6 +42,8 @@ class AgentProfileModel {
       topics: List.from(json['topics'] ?? []),
       languages: List.from(json['languages'] ?? []),
       agentId: json['agentId']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      rating: json['rating']?.toDouble() ?? 0.0,
     );
 
     // जैसे ही JSON से बने, इसे current में सेट कर दें
@@ -56,6 +62,8 @@ class AgentProfileModel {
       'topics': topics,
       'languages': languages,
       'agentId': agentId,
+      'location': location,
+      'rating': rating,
     };
   }
 }

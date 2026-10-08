@@ -1,5 +1,8 @@
 import 'package:get/get.dart';
 import 'package:talk24loves/Api/AppConfig.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentFinancialModel.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentJobOnOffModel.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentPayoutDetailsModel.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/agent_model.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/agent_storage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
@@ -19,10 +22,6 @@ class UserApiService extends GetConnect {
     httpClient.timeout = const Duration(seconds: 30);
   }
 
-  // ==========================================
-  // HOME DATA
-  // ==========================================
-
   Future<dynamic> fetchHomeData() async {
     try {
       final response = await get('$_userEndpoint/UseAppHome');
@@ -39,16 +38,6 @@ class UserApiService extends GetConnect {
       return null;
     }
   }
-
-  // ==========================================
-  // 1. SEND OTP
-  // POST /api/commonAuth/send-otp
-  //
-  // BODY:
-  // {
-  //   "phoneNumber": "+919876543210"
-  // }
-  // ==========================================
 
   Future<Map<String, dynamic>?> sendOtp(String phoneNumber) async {
     try {
@@ -77,21 +66,6 @@ class UserApiService extends GetConnect {
       return {'success': false, 'message': e.toString()};
     }
   }
-
-  // ==========================================
-  // 2. VERIFY OTP
-  // POST /api/commonAuth/verify-and-register
-  //
-  // IMPORTANT:
-  // Backend expects ONLY:
-  //
-  // {
-  //   "phoneNumber": "+919876543210",
-  //   "otp": "1234"
-  // }
-  //
-  // verificationId is NOT used by the backend.
-  // ==========================================
 
   Future<Map<String, dynamic>?> verifyAndRegister({
     required String phoneNumber,
@@ -166,18 +140,6 @@ class UserApiService extends GetConnect {
     }
   } // ==========================================
 
-  // 3. SELECT GENDER & REGISTER
-  // POST /api/commonAuth/select-gender
-  //
-  // BODY:
-  // {
-  //   "phoneNumber": "+919876543210",
-  //   "gender": "male"
-  // }
-  //
-  // male   -> User
-  // female -> Agent
-  // ==========================================
   Future fetchUserProfile() async {
     String userId = AppConfig.user?.id ?? "";
     try {
@@ -401,13 +363,13 @@ class UserApiService extends GetConnect {
         body,
         headers: {'Accept': 'application/json'},
       );
-      print(response.body);
+
       if (response.body is Map) {
         var res = Map.from(response.body);
-        print(res);
+
         return res;
       }
-      print("..............");
+
       return {
         'success': false,
         'message': 'Invalid server response',
@@ -419,11 +381,292 @@ class UserApiService extends GetConnect {
     }
   }
 
-  Future<Map<String, dynamic>?> fetchAgentEarnings() async {
-    String agentId = "6ac1f98efe5f3f96642e22c1";
+  // ==========================================
+  // AGENT APIs
+  // Base: /api/agents
+  // All agent APIs require Authorization: Bearer <agent-token>
+  // ==========================================
+
+  Map<String, String> _agentHeaders() {
+    String agentToken = AppConfig.agent?.authToken ?? "";
+    return {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $agentToken',
+    };
+  }
+
+  Future<AgentJobOnOffModel?> changeJobOnOffStatus(bool isOnline) async {
+    String userId = AppConfig.agent?.id ?? "";
+
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/me/job-on-off/$userId?isOnline=$isOnline',
+        {},
+        headers: _agentHeaders(),
+      );
+      print("Agent jobOnOff Details Response: ${response.body}");
+      if (response.body is Map && response.body['success'] == true) {
+        final responseData = Map<String, dynamic>.from(response.body);
+        final data = responseData['data'];
+        if (data is Map) {
+          return AgentJobOnOffModel.fromJson(Map<String, dynamic>.from(data));
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('Error changing agent jobOnOff status: $e');
+      return null;
+    }
+  }
+
+  Future<AgentJobOnOffModel?> getJobOnOffStatus() async {
+    String userId = AppConfig.agent?.id ?? "";
+
     try {
       final response = await get(
-        '${AppConfig.rootBaseUrl}/api/agents/me/earnings?agentId=$agentId',
+        '${AppConfig.rootBaseUrl}/api/agents/me/job-on-off/$userId',
+        headers: _agentHeaders(),
+      );
+      print("Agent jobOnOff Details Response: ${response.body}");
+      if (response.body is Map && response.body['success'] == true) {
+        final responseData = Map<String, dynamic>.from(response.body);
+        final data = responseData['data'];
+        if (data is Map) {
+          return AgentJobOnOffModel.fromJson(Map<String, dynamic>.from(data));
+        }
+      }
+
+      return null;
+    } catch (e) {
+      print('Error fetching agent jobOnOff status: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchAgentFinancialsDetails() async {
+    String userId = AppConfig.agent?.id ?? "";
+    print("Fetching financial details for agent ID: $userId");
+    try {
+      final response = await get(
+        '${AppConfig.rootBaseUrl}/api/agents/me/financialsDetails/$userId',
+        headers: _agentHeaders(),
+      );
+      print("Agent Financials Details Response: ${response.body}");
+      if (response.body['success'] == true && response.body is Map) {
+        final Map<String, dynamic> responseData = Map<String, dynamic>.from(
+          response.body,
+        );
+
+        final financialData = responseData['data'];
+        if (financialData is Map) {
+          final model = AgentFinancialModel.fromJson(
+            Map<String, dynamic>.from(financialData),
+          );
+
+          return model.toJson();
+        }
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error fetching agent financial details: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAgentProfileName({
+    required String displayName,
+  }) async {
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/me/profile/$userId',
+        {'displayName': displayName},
+        headers: _agentHeaders(),
+      );
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error updating agent profile name: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAgentTopics({
+    required List<String> topics,
+  }) async {
+    if (topics.isEmpty) {
+      return {'success': false, 'message': 'Topics must be a non-empty array'};
+    }
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/me/topics/$userId',
+        {'topics': topics},
+        headers: _agentHeaders(),
+      );
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error updating agent topics: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAgentLanguages({
+    required List<String> languages,
+  }) async {
+    if (languages.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Languages must be a non-empty array',
+      };
+    }
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/me/languages/$userId',
+        {'languages': languages},
+        headers: _agentHeaders(),
+      );
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error updating agent languages: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAgentCategory({
+    required String category,
+  }) async {
+    if (category.trim().isEmpty) {
+      return {'success': false, 'message': 'Category is required'};
+    }
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/me/category/$userId',
+        {'category': category},
+        headers: _agentHeaders(),
+      );
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error updating agent category: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAgentPayoutDetails({
+    String? upiId,
+    String? accountHolderName,
+    String? accountNumber,
+    String? ifscCode,
+    String? bankName,
+  }) async {
+    if (upiId == null || upiId.trim().isEmpty) {
+      return {
+        'success': false,
+        'message': 'UPI ID is required',
+        'statusCode': 400,
+      };
+    }
+
+    // Validate that each value is strictly less than 30 characters
+    final values = {
+      'upiId': upiId,
+      'accountHolderName': accountHolderName,
+      'accountNumber': accountNumber,
+      'ifscCode': ifscCode,
+      'bankName': bankName,
+    };
+
+    for (var entry in values.entries) {
+      if (entry.value != null && entry.value!.trim().length >= 30) {
+        return {
+          'success': false,
+          'message': '${entry.key} must be under 30 characters',
+          'statusCode': 400,
+        };
+      }
+    }
+
+    String userId = AppConfig.agent?.id ?? "";
+    if (userId.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Agent ID is missing',
+        'statusCode': 400,
+      };
+    }
+
+    try {
+      // Build URI with query parameters
+      final uri =
+          Uri.parse(
+            '${AppConfig.rootBaseUrl}/api/agents/me/payout-details/$userId',
+          ).replace(
+            queryParameters: {
+              'upiId': upiId.trim(),
+              if (accountHolderName != null &&
+                  accountHolderName.trim().isNotEmpty)
+                'accountHolderName': accountHolderName.trim(),
+              if (accountNumber != null && accountNumber.trim().isNotEmpty)
+                'accountNumber': accountNumber.trim(),
+              if (ifscCode != null && ifscCode.trim().isNotEmpty)
+                'ifscCode': ifscCode.trim(),
+              if (bankName != null && bankName.trim().isNotEmpty)
+                'bankName': bankName.trim(),
+            },
+          );
+
+      final response = await put(
+        uri.toString(),
+        {},
         headers: {'Accept': 'application/json'},
       );
 
@@ -435,9 +678,88 @@ class UserApiService extends GetConnect {
         'success': false,
         'message': 'Invalid server response',
         'statusCode': response.statusCode,
+        'rawResponse': response.body,
       };
     } catch (e) {
-      print('Error fetching agent earnings: $e');
+      print('Error updating agent payout details: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<AgentPayoutDetailsModel?> fetchAgentPayoutDetails() async {
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      final response = await get(
+        '${AppConfig.rootBaseUrl}/api/agents/me/payout-details/$userId',
+        headers: _agentHeaders(),
+      );
+
+      if (response.body is! Map) return null;
+
+      final responseData = Map<String, dynamic>.from(response.body);
+      if (responseData['success'] == false) return null;
+
+      final data = responseData['data'];
+      final payoutData = data is Map ? data['payoutDetails'] : null;
+      final detailsData = payoutData is Map ? payoutData : data;
+
+      if (detailsData is! Map) return null;
+
+      return AgentPayoutDetailsModel.fromJson(
+        Map<String, dynamic>.from(detailsData),
+      );
+    } catch (e) {
+      print('Error fetching agent payout details: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> requestAgentWithdrawal({
+    required double amount,
+    required String upiId,
+    required String accountHolderName,
+    required String accountNumber,
+    required String ifscCode,
+    required String bankName,
+  }) async {
+    String userId = AppConfig.agent?.id ?? "";
+
+    if (userId.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Agent ID is required',
+        'statusCode': 400,
+      };
+    }
+
+    final body = <String, dynamic>{
+      'amount': amount,
+      'upiId': upiId,
+      'accountHolderName': accountHolderName,
+      'accountNumber': accountNumber,
+      'ifscCode': ifscCode,
+      'bankName': bankName,
+    };
+
+    try {
+      final response = await post(
+        '${AppConfig.rootBaseUrl}/api/agents/me/withdrawals',
+        body,
+        headers: _agentHeaders(),
+      );
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error requesting agent withdrawal: $e');
       return {'success': false, 'message': e.toString()};
     }
   }

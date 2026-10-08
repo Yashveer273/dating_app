@@ -6,34 +6,23 @@ import 'package:talk24loves/app_theme_controller.dart';
 
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/firebase_options.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/models/agent_model.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/agent_storage.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
-import 'package:talk24loves/screens/phone_login_screen.dart';
-import 'package:talk24loves/screens/userSection/model/user_model.dart';
+import 'package:talk24loves/session_controller.dart';
 
 void main() async {
-  Get.put(ThemeController());
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await GetStorage.init();
-  await Get.find<ThemeController>().loadTheme();
-  final UserModel? user = UserStorage.getUser();
-  final AgentModel? agent = AgentStorage.getAgent();
+  Get.put(ThemeController());
 
-  if (user != null) {
-    print(user.id);
-    print(user.role);
-    print(user.walletBalance);
-    print(user.name);
-  }
-  if (agent != null) {
-    print(agent.id);
-    print(agent.role);
-    print(agent.walletBalance);
-    print(agent.displayName);
-  }
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await GetStorage.init();
+
+  await Get.find<ThemeController>().loadTheme();
+
+  final SessionController sessionController = SessionController();
+  Get.put(sessionController);
+  sessionController.initializeFromStorage();
+
   runApp(const MyApp());
 }
 
@@ -45,15 +34,18 @@ class MyApp extends StatelessWidget {
     if (!Get.isRegistered<ThemeController>()) {
       Get.put(ThemeController());
     }
+
     final themeController = Get.find<ThemeController>();
 
     return Obx(
       () => GetMaterialApp(
         title: 'Amour - Private Audio & Video Talk',
         debugShowCheckedModeBanner: false,
+
         themeMode: themeController.isDarkMode
             ? ThemeMode.dark
             : ThemeMode.light,
+
         theme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.light,
@@ -64,6 +56,7 @@ class MyApp extends StatelessWidget {
           ),
           fontFamily: 'Roboto',
         ),
+
         darkTheme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.dark,
@@ -75,7 +68,10 @@ class MyApp extends StatelessWidget {
           ),
           fontFamily: 'Roboto',
         ),
-        home: const LoginScreen(),
+
+        home: GetBuilder<SessionController>(
+          builder: (controller) => controller.currentScreen.value,
+        ),
       ),
     );
   }

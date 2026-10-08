@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
@@ -17,7 +18,7 @@ class LedgerPage extends StatefulWidget {
 class _LedgerPageState extends State {
   final LedgerController controller = Get.put(LedgerController());
   final ThemeController themeController = Get.find();
-
+  final UserApiService userApiService = Get.find();
   bool get isDarkMode => themeController.isDarkMode;
 
   Color get primaryText =>
@@ -28,6 +29,11 @@ class _LedgerPageState extends State {
   @override
   void initState() {
     super.initState();
+    _fetchFinancialDetails();
+  }
+
+  Future<void> _fetchFinancialDetails() async {
+    await userApiService.fetchAgentFinancialsDetails();
     controller.fetchAgentEarningsFromServer();
   }
 
@@ -61,32 +67,47 @@ class _LedgerPageState extends State {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        Text(
-                          'Ledger & Payouts',
-                          style: TextStyle(
-                            color: primaryText,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryPink.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: AppColors.primaryPink,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Manage your earnings and transfers',
-                          style: TextStyle(
-                            color: secondaryText,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
+                        SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ledger & Payouts',
+                              style: TextStyle(
+                                color: secondaryText,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Manage your earnings and transfers',
+                              style: TextStyle(
+                                color: primaryText,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     IconButton(
-                      onPressed: () =>
-                          controller.fetchAgentEarningsFromServer(),
+                      onPressed: () => {_fetchFinancialDetails()},
                       icon: Icon(
                         Icons.refresh_rounded,
                         color: secondaryText,

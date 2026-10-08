@@ -56,9 +56,6 @@ class CallAgentController extends GetxController {
         }).toList();
 
         historyList.assignAll(loadedHistory);
-        print(
-          '✅ Call history successfully loaded into model: ${historyList.length} items',
-        );
       }
     } catch (e) {
       print('❌ Error loading call history from API: $e');

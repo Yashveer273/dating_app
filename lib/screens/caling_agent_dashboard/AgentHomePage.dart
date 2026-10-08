@@ -3,6 +3,7 @@
 // ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
@@ -11,6 +12,7 @@ import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/incoming_
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentProfilePage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/CallActionHandler.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentFinancialModel.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentProfileModel.dart';
 
 class AgentHomePage extends StatefulWidget {
@@ -21,16 +23,22 @@ class AgentHomePage extends StatefulWidget {
 }
 
 class _AgentHomePageState extends State with TickerProviderStateMixin {
-  final AgentMainController controller = Get.find();
-  final ThemeController themeController = Get.find();
+  final AgentMainController controller = Get.put(AgentMainController());
+  final ThemeController themeController = Get.find<ThemeController>();
+  final UserApiService userApiService = Get.put(UserApiService());
   final CallAgentController callController = Get.put(CallAgentController());
-
+  final Rx<AgentFinancialModel?> agentFinancials = Rx<AgentFinancialModel?>(
+    AgentFinancialModel.current,
+  );
   late final AnimationController _gradientController;
   late final AnimationController _blinkController;
 
   @override
   void initState() {
     super.initState();
+    _fetchFinancialDetails();
+
+    controller.loadProfileData();
     _gradientController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -47,6 +55,69 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
     _gradientController.dispose();
     _blinkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchFinancialDetails() async {
+    await userApiService.fetchAgentFinancialsDetails();
+    await userApiService.getJobOnOffStatus();
+    agentFinancials.value = AgentFinancialModel.current;
+  }
+
+  String getTotalCallTime(AgentFinancialModel? financials) {
+    final audioSeconds = financials?.audioCallDurationSeconds ?? 0;
+
+    final videoSeconds = financials?.videoCallDurationSeconds ?? 0;
+
+    final totalSeconds = audioSeconds + videoSeconds;
+
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+
+    String formatHours(int hours) {
+      if (hours < 1000) {
+        return '${hours}h';
+      }
+
+      final value = hours / 1000;
+
+      if (value == value.roundToDouble()) {
+        return '${value.toInt()}k h';
+      }
+
+      return '${value.toStringAsFixed(1)}k h';
+    }
+
+    return '${formatHours(hours)} ${minutes}m';
+  }
+
+  String formatAmount(double? amount) {
+    final value = amount ?? 0.0;
+
+    if (value >= 10000000) {
+      final crore = value / 10000000;
+
+      return crore == crore.roundToDouble()
+          ? '₹${crore.toInt()}Cr'
+          : '₹${crore.toStringAsFixed(2)}Cr';
+    }
+
+    if (value >= 100000) {
+      final lakh = value / 100000;
+
+      return lakh == lakh.roundToDouble()
+          ? '₹${lakh.toInt()}L'
+          : '₹${lakh.toStringAsFixed(2)}L';
+    }
+
+    if (value >= 1000) {
+      final thousand = value / 1000;
+
+      return thousand == thousand.roundToDouble()
+          ? '₹${thousand.toInt()}K'
+          : '₹${thousand.toStringAsFixed(2)}K';
+    }
+
+    return '₹${value.toStringAsFixed(2)}';
   }
 
   @override
@@ -95,7 +166,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons.account_balance_wallet_rounded,
+                            Icons.currency_rupee,
                             color: AppColors.primaryPink,
                             size: 20,
                           ),
@@ -115,8 +186,9 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                             const SizedBox(height: 2),
                             Obx(
                               () => Text(
-                                controller.currentEarnings.value
-                                    .toStringAsFixed(2),
+                                formatAmount(
+                                  agentFinancials.value?.totalEarned,
+                                ),
                                 style: TextStyle(
                                   color: primaryText,
                                   fontSize: 16,
@@ -144,7 +216,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                             const SizedBox(height: 2),
                             Obx(
                               () => Text(
-                                controller.totalCallTime.value,
+                                getTotalCallTime(agentFinancials.value),
                                 style: TextStyle(
                                   color: primaryText,
                                   fontSize: 16,
@@ -350,12 +422,25 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                                       ),
                                     ),
                                     const SizedBox(width: 4),
-                                    Switch.adaptive(
-                                      value: online,
-                                      activeColor: AppColors.primaryPink,
-                                      onChanged: (val) =>
-                                          controller.toggleOnlineStatus(),
-                                    ),
+                                    Obx(() {
+                                      if (controller.isLoading.value) {
+                                        return const SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.primaryPink,
+                                          ),
+                                        );
+                                      }
+
+                                      return Switch.adaptive(
+                                        value: online,
+                                        activeColor: AppColors.primaryPink,
+                                        onChanged: (_) =>
+                                            controller.toggleOnlineStatus(),
+                                      );
+                                    }),
                                   ],
                                 ),
                               ),

@@ -6,5 +6,5 @@ import 'package:talk24loves/screens/userSection/model/user_model.dart';
 class AppConfig {
   static const String rootBaseUrl = "http://192.168.1.11:3000";
   static UserModel? get user => UserStorage.getUser();
-  static final AgentModel? agent = AgentStorage.getAgent();
+  static AgentModel? get agent => AgentStorage.getAgent();
 }

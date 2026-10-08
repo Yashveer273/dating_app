@@ -10,6 +10,8 @@ import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/history_c
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/incoming_call_card.dart';
 
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/shared_call_screen.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentMainController.dart'
+    show AgentMainController;
 
 class AgentHistoryPage extends StatefulWidget {
   const AgentHistoryPage({super.key});
@@ -21,6 +23,7 @@ class AgentHistoryPage extends StatefulWidget {
 class _AgentHistoryPageState extends State<AgentHistoryPage>
     with TickerProviderStateMixin {
   final CallAgentController controller = Get.put(CallAgentController());
+  final AgentMainController maincontroller = Get.find();
   final ThemeController themeController = Get.find();
 
   final RxString selectedFilter = 'All Calls'.obs;
@@ -309,39 +312,40 @@ class _AgentHistoryPageState extends State<AgentHistoryPage>
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(9),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: AppColors.primaryPink.withOpacity(0.12),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.history_rounded,
+                              Icons.add_call,
                               color: AppColors.primaryPink,
-                              size: 18,
+                              size: 20,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
+
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Call Activity & Log',
+                                  'Call Activity',
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: primaryText,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
+                                    color: secondaryText,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Incoming requests & history overview',
+                                  'History & Call Request',
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: secondaryText,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w500,
+                                    color: primaryText,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
@@ -351,38 +355,50 @@ class _AgentHistoryPageState extends State<AgentHistoryPage>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.greenAccent.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.greenAccent.withOpacity(0.4),
+                    Obx(() {
+                      final isOnline = maincontroller.isOnline.value;
+                      final statusColor = isOnline
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF8B8B8B);
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
-                            Icons.circle,
-                            color: Colors.greenAccent,
-                            size: 7,
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: statusColor.withOpacity(0.22),
+                            width: 1,
                           ),
-                          SizedBox(width: 4),
-                          Text(
-                            'You Are Online',
-                            style: TextStyle(
-                              color: Colors.greenAccent,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                            const SizedBox(width: 7),
+                            Text(
+                              isOnline ? 'Online' : 'Offline',
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),

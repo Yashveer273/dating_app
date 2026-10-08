@@ -3,11 +3,15 @@
 // ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentFinancialModel.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/ledger_models.dart';
 
 class LedgerController extends GetxController {
+  final UserApiService _apiService = Get.put(UserApiService());
+
   // --- Earnings & Withdrawal State ---
   RxDouble audioCallEarnings = 0.0.obs;
   RxDouble videoCallEarnings = 0.0.obs;
@@ -17,7 +21,7 @@ class LedgerController extends GetxController {
   RxInt videoCallDurationSeconds = 0.obs;
   RxBool isLoadingEarnings = false.obs;
   RxString earningsError = ''.obs;
-  final UserApiService _apiService = Get.put(UserApiService());
+
   RxString pendingAudioTalkTime = '0hr 0m'.obs;
   RxString pendingVideoTalkTime = '0hr 0m'.obs;
   final double minimumWithdrawalLimit = 1000.00;
@@ -30,6 +34,7 @@ class LedgerController extends GetxController {
   RxBool isAscendingSort =
       false.obs; // false = Newest first, true = Oldest first
   final Rxn selectedFilterDate = Rxn();
+  final AgentFinancialModel? agentFinancials = AgentFinancialModel.current;
 
   DateTime? get selectedFilterDateValue {
     final value = selectedFilterDate.value;
@@ -42,27 +47,21 @@ class LedgerController extends GetxController {
   }
 
   Future fetchAgentEarningsFromServer() async {
-    isLoadingEarnings.value = true;
-    earningsError.value = '';
     try {
-      final response = await _apiService.fetchAgentEarnings();
-      final data = response?['data'];
-      if (response?['success'] != true || data is! Map) {
-        earningsError.value =
-            response?['message']?.toString() ?? 'Unable to load earnings.';
-        return;
-      }
-
-      walletBalance.value = _numberValue(data['walletBalance']);
-      totalEarned.value = _numberValue(data['totalEarned']);
+      walletBalance.value = _numberValue(agentFinancials!.walletBalance);
+      totalEarned.value = _numberValue(agentFinancials!.totalEarned);
       audioCallDurationSeconds.value = _numberValue(
-        data['audioCallDurationSeconds'],
+        agentFinancials!.audioCallDurationSeconds,
       ).round();
-      audioCallEarnings.value = _numberValue(data['audioCallEarnings']);
+      audioCallEarnings.value = _numberValue(
+        agentFinancials!.audioCallEarnings,
+      );
       videoCallDurationSeconds.value = _numberValue(
-        data['videoCallDurationSeconds'],
+        agentFinancials!.videoCallDurationSeconds,
       ).round();
-      videoCallEarnings.value = _numberValue(data['videoCallEarnings']);
+      videoCallEarnings.value = _numberValue(
+        agentFinancials!.videoCallEarnings,
+      );
 
       pendingAudioTalkTime.value = formatCallDuration(
         audioCallDurationSeconds.value,
@@ -156,7 +155,7 @@ class LedgerController extends GetxController {
     selectedFilterDate.value = null;
   }
 
-  double get pendingIncome => audioCallEarnings.value + videoCallEarnings.value;
+  double get pendingIncome => agentFinancials!.walletBalance;
   bool get canWithdraw => pendingIncome >= minimumWithdrawalLimit;
   void saveBankDetails({
     required String accountNumber,
@@ -180,7 +179,23 @@ class LedgerController extends GetxController {
     );
   }
 
-  void requestWithdrawal(double amount) {
+  void loadBankDetails({
+    required String upiId,
+    required String accountNumber,
+    required String ifscCode,
+    required String accountHolderName,
+    required String bankName,
+  }) {
+    savedBankDetails.value = BankDetails(
+      accountNumber: accountNumber,
+      ifscCode: ifscCode,
+      accountHolderName: accountHolderName,
+      bankName: bankName,
+      upiId: upiId,
+    );
+  }
+
+  Future<void> requestWithdrawal(double amount) async {
     if (!canWithdraw) {
       Get.snackbar(
         'Minimum Limit Required',
@@ -204,10 +219,32 @@ class LedgerController extends GetxController {
       return;
     }
 
-    if (amount > pendingIncome) {
+    if (amount <= 0 || amount > pendingIncome) {
       Get.snackbar(
         'Invalid Amount',
-        'Withdrawal amount cannot exceed pending available income.',
+        'Withdrawal amount must be greater than zero and cannot exceed pending available income.',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(16),
+      );
+      return;
+    }
+    print("call time");
+    final bankDetails = savedBankDetails.value!;
+    final response = await _apiService.requestAgentWithdrawal(
+      amount: amount,
+      upiId: bankDetails.upiId ?? '',
+      accountHolderName: bankDetails.accountHolderName,
+      accountNumber: bankDetails.accountNumber,
+      ifscCode: bankDetails.ifscCode,
+      bankName: bankDetails.bankName,
+    );
+
+    if (response['success'] != true) {
+      Get.snackbar(
+        'Withdrawal Failed',
+        response['message']?.toString() ?? 'Unable to request withdrawal.',
         backgroundColor: Colors.redAccent,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -259,7 +296,7 @@ class LedgerController extends GetxController {
         timestamp: now, // DateTime object preserved for filtering and sorting
         formattedTimestamp: formattedTime,
         status: 'Pending',
-        bankName: savedBankDetails.value!.bankName,
+        bankName: bankDetails.bankName,
         paidAudioTime: settledAudio,
         paidVideoTime: settledVideo,
         audioEarnings: settledAudioEarnings,
@@ -270,7 +307,7 @@ class LedgerController extends GetxController {
     Get.back();
     Get.snackbar(
       'Withdrawal Requested',
-      'Successfully requested ₹${amount.toStringAsFixed(2)} to ${savedBankDetails.value!.bankName}',
+      'Successfully requested ₹${amount.toStringAsFixed(2)} to ${bankDetails.bankName}',
       backgroundColor: Colors.green,
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
