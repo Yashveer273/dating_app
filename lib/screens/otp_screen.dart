@@ -166,14 +166,16 @@ class _OtpScreenState extends State<OtpScreen> {
         );
       } else {
         if (role == 'agent') {
-          Navigator.pushReplacement(
+          Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => CallingAgentMainFile()),
+            (Route<dynamic> route) => false,
           );
         } else {
-          Navigator.pushReplacement(
+          Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => UserMainFile()),
+            (Route<dynamic> route) => false,
           );
         }
       }

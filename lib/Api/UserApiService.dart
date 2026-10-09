@@ -250,11 +250,43 @@ class UserApiService extends GetConnect {
         headers: {'Accept': 'application/json'},
       );
 
-      print("Select Gender Status: ${response.statusCode}");
-      print("Select Gender Response: ${response.body}");
+      final Map<String, dynamic> data = Map<String, dynamic>.from(
+        response.body,
+      );
 
-      if (response.body is Map) {
-        return Map<String, dynamic>.from(response.body);
+      if (data['success'] == true) {
+        final String? role = data['role']?.toString();
+
+        if (role == 'user') {
+          final userData = data['data'];
+
+          if (userData is Map) {
+            final userModel = UserModel.fromJson(
+              Map<String, dynamic>.from(userData),
+              role!,
+            );
+
+            await UserStorage.saveUser(userModel);
+
+            print('User model stored successfully');
+            return data;
+          }
+        } else if (role == 'agent') {
+          final agentData = data['data'];
+
+          if (agentData is Map) {
+            final agentJson = Map<String, dynamic>.from(agentData);
+
+            agentJson['role'] = role;
+
+            final agentModel = AgentModel.fromJson(agentJson);
+
+            await AgentStorage.saveAgent(agentModel);
+
+            print('Agent model stored successfully');
+            return data;
+          }
+        }
       }
 
       return {
@@ -391,7 +423,7 @@ class UserApiService extends GetConnect {
     String agentToken = AppConfig.agent?.authToken ?? "";
     return {
       'Accept': 'application/json',
-      'Content-Type': 'application/json',
+
       'Authorization': 'Bearer $agentToken',
     };
   }
@@ -442,6 +474,31 @@ class UserApiService extends GetConnect {
     } catch (e) {
       print('Error fetching agent jobOnOff status: $e');
       return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchcatagories() async {
+    try {
+      final response = await get(
+        '${AppConfig.rootBaseUrl}/api/agents/admin/category',
+        headers: _agentHeaders(),
+      );
+      print("category Details Response: ${response.body}");
+      if (response.body is Map &&
+          (response.body['success'] == true ||
+              response.body['status'] == true)) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error fetching agent financial details: $e');
+      return {'success': false, 'message': e.toString()};
     }
   }
 
@@ -574,15 +631,12 @@ class UserApiService extends GetConnect {
   Future<Map<String, dynamic>> updateAgentCategory({
     required String category,
   }) async {
-    if (category.trim().isEmpty) {
-      return {'success': false, 'message': 'Category is required'};
-    }
     String userId = AppConfig.agent?.id ?? "";
     try {
       final response = await put(
         '${AppConfig.rootBaseUrl}/api/agents/me/category/$userId',
         {'category': category},
-        headers: _agentHeaders(),
+        headers: {..._agentHeaders(), 'Content-Type': 'application/json'},
       );
 
       if (response.body is Map) {

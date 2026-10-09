@@ -5,7 +5,9 @@ import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
+import 'package:talk24loves/screens/phone_login_screen.dart';
 import 'package:talk24loves/screens/userSection/model/user_model.dart';
+import 'package:talk24loves/session_controller.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({Key? key}) : super(key: key);
@@ -19,6 +21,7 @@ class _UserProfileScreenState extends State {
   UserModel? user;
   bool _isLoading = true;
   bool _isEditingName = false;
+  bool _isLoggingOut = false;
   late TextEditingController _nameController;
 
   @override
@@ -35,6 +38,7 @@ class _UserProfileScreenState extends State {
   }
 
   Future _loadUserProfile() async {
+    UserStorage.getUser;
     setState(() => _isLoading = true);
     final userModel = await UserApiService().fetchUserProfile();
 
@@ -82,6 +86,55 @@ class _UserProfileScreenState extends State {
     }
   }
 
+  Future<void> _handleLogout() async {
+    if (_isLoggingOut) return;
+
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Log out?'),
+          content: const Text('You will be signed out of this device.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.tonal(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Log out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true) return;
+
+    setState(() => _isLoggingOut = true);
+
+    try {
+      await UserStorage.clearUser();
+
+      if (!mounted) return;
+      Get.until((route) => route.isFirst);
+      Get.find<SessionController>().currentScreen.value = const LoginScreen();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoggingOut = false);
+      Get.snackbar(
+        'Logout failed',
+        'Unable to clear your session. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFC62828),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 14,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -116,6 +169,31 @@ class _UserProfileScreenState extends State {
           iconTheme: IconThemeData(color: primaryText),
           elevation: 0,
           actions: [
+            SizedBox(
+              width: 100,
+              child: OutlinedButton.icon(
+                onPressed: _isLoggingOut ? null : _handleLogout,
+                icon: _isLoggingOut
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.logout_rounded),
+                label: Text(
+                  _isLoggingOut ? 'Logging out...' : 'Log out',
+                  style: TextStyle(color: AppColors.lightBgMid),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: AppColors.pinkDeep,
+                  iconColor: AppColors.lightBgMid,
+                  side: const BorderSide(color: AppColors.pinkDark),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+
             IconButton(
               tooltip: isDarkMode
                   ? 'Switch to light mode'
@@ -490,6 +568,7 @@ class _UserProfileScreenState extends State {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),

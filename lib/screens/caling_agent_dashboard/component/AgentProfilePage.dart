@@ -36,17 +36,17 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
 
   late TextEditingController _nameController;
   late TextEditingController _bioController;
-  late TextEditingController _categoryController;
   late TextEditingController _topicInputController;
 
   List<String> _currentTopics = [];
+  List<String> _availableCategories = [];
+  List<String> _selectedCategories = [];
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
     _bioController = TextEditingController();
-    _categoryController = TextEditingController();
     _topicInputController = TextEditingController();
 
     // Init ke andar API call karke profile data fetch karein[cite: 1]
@@ -59,15 +59,23 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       final fetchedUser = await _userApiService.fetchUserProfile();
       if (fetchedUser != null) {
         setState(() {
-          _nameController.text = fetchedUser.name ?? '';
-          _categoryController.text = fetchedUser.category ?? '';
+          _nameController.text =
+              _firstNonEmpty([
+                fetchedUser.name,
+                AgentProfileModel.current?.displayName,
+                agent?.displayName,
+              ]) ??
+              '';
+          _selectedCategories = _parseCategories(fetchedUser.category);
         });
       } else {
         _initProfileData();
       }
+      await _loadCategoryOptions();
     } catch (e) {
       print("Error loading profile from API: $e");
       _initProfileData();
+      await _loadCategoryOptions();
     } finally {
       if (mounted) {
         setState(() => _isFetchingProfile = false);
@@ -75,11 +83,78 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     }
   }
 
+  Future<void> _loadCategoryOptions() async {
+    try {
+      final response = await _userApiService.fetchcatagories();
+      final data = response['data'];
+      final rawCategories =
+          response['categories'] ?? (data is Map ? data['categories'] : data);
+      final fetchedCategories = rawCategories is List
+          ? rawCategories
+                .map((item) {
+                  if (item is Map) {
+                    return (item['name'] ?? item['category'] ?? '')
+                        .toString()
+                        .trim();
+                  }
+                  return item.toString().trim();
+                })
+                .where((name) => name.isNotEmpty)
+          : const <String>[];
+
+      if (!mounted) return;
+      setState(() {
+        _availableCategories = _uniqueCategories([
+          ...fetchedCategories,
+          ..._selectedCategories,
+        ]);
+      });
+    } catch (e) {
+      print('Error loading agent categories: $e');
+      if (!mounted) return;
+      setState(() {
+        _availableCategories = List<String>.from(_selectedCategories);
+      });
+    }
+  }
+
+  List<String> _parseCategories(String? value) {
+    if (value == null || value.trim().isEmpty) return [];
+    return _uniqueCategories(value.split(','));
+  }
+
+  List<String> _uniqueCategories(Iterable<String> categories) {
+    final uniqueCategories = <String>[];
+    final seenCategories = <String>{};
+    for (final category in categories) {
+      final trimmedCategory = category.trim();
+      if (trimmedCategory.isNotEmpty &&
+          trimmedCategory.toLowerCase() != 'all' &&
+          seenCategories.add(trimmedCategory.toLowerCase())) {
+        uniqueCategories.add(trimmedCategory);
+      }
+    }
+    return uniqueCategories;
+  }
+
+  String? _firstNonEmpty(Iterable<String?> values) {
+    for (final value in values) {
+      final trimmedValue = value?.trim();
+      if (trimmedValue != null && trimmedValue.isNotEmpty) {
+        return trimmedValue;
+      }
+    }
+    return null;
+  }
+
   void _initProfileData() {
     final profile = AgentProfileModel.current;
-    _nameController.text = profile?.displayName ?? agent?.displayName ?? '';
+    _nameController.text =
+        _firstNonEmpty([profile?.displayName, agent?.displayName]) ?? '';
     _bioController.text = profile?.bio ?? agent?.bio ?? '';
-    _categoryController.text = profile?.category ?? agent?.category ?? '';
+    _selectedCategories = _parseCategories(
+      profile?.category ?? agent?.category,
+    );
 
     if (profile?.topics != null) {
       _currentTopics = List<String>.from(profile!.topics!);
@@ -92,7 +167,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   void dispose() {
     _nameController.dispose();
     _bioController.dispose();
-    _categoryController.dispose();
     _topicInputController.dispose();
     super.dispose();
   }
@@ -155,7 +229,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     setState(() => _isLoading = true);
 
     final newName = _nameController.text.trim();
-    final newCategory = _categoryController.text.trim();
+    final newCategory = _selectedCategories.join(', ');
 
     bool hasError = false;
 
@@ -165,11 +239,12 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       );
       if (res['success'] != true && res['statusCode'] != 200) hasError = true;
     }
-    if (newCategory.isNotEmpty) {
-      final res = await _userApiService.updateAgentCategory(
-        category: newCategory,
-      );
-      if (res['success'] != true && res['statusCode'] != 200) hasError = true;
+    final categoryResponse = await _userApiService.updateAgentCategory(
+      category: newCategory,
+    );
+    if (categoryResponse['success'] != true &&
+        categoryResponse['statusCode'] != 200) {
+      hasError = true;
     }
     if (_currentTopics.isNotEmpty) {
       final res = await _userApiService.updateAgentTopics(
@@ -257,11 +332,17 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
 
       final profile = AgentProfileModel.current;
       final avatarUrl = profile?.avatar ?? agent?.avatar;
-      final agentName = profile?.displayName ?? agent?.displayName;
+      final agentName =
+          _firstNonEmpty([
+            _nameController.text,
+            profile?.displayName,
+            agent?.displayName,
+          ]) ??
+          'No Name';
       final agentId = profile?.agentId ?? agent?.agentId;
       final phoneNumber = profile?.phoneNumber ?? agent?.phoneNumber;
       final bioText = profile?.bio ?? agent?.bio;
-      final category = profile?.category ?? agent?.category;
+      final category = _selectedCategories.join(', ');
       final location = profile?.location ?? agent?.firebaseLocation ?? 'India';
 
       return AppBackground(
@@ -435,7 +516,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                               children: [
                                                 Flexible(
                                                   child: Text(
-                                                    agentName ?? 'No Name',
+                                                    agentName,
                                                     maxLines: 2,
                                                     overflow:
                                                         TextOverflow.ellipsis,
@@ -456,49 +537,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                               ],
                                             ),
                                           const SizedBox(height: 6),
-
-                                          if (_isEditing)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 6,
-                                              ),
-                                              child: TextField(
-                                                controller: _categoryController,
-                                                style: TextStyle(
-                                                  color: primaryText,
-                                                  fontSize: 13,
-                                                ),
-                                                decoration: InputDecoration(
-                                                  hintText: "Category",
-                                                  isDense: true,
-                                                  filled: true,
-                                                  fillColor: isDarkMode
-                                                      ? Colors.black26
-                                                      : Colors.grey.shade100,
-                                                  contentPadding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 8,
-                                                      ),
-                                                  border: OutlineInputBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    borderSide: BorderSide.none,
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                          else if ((category ?? '').isNotEmpty)
-                                            Text(
-                                              category!,
-                                              style: TextStyle(
-                                                color: AppColors.primaryPink,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
 
                                           const SizedBox(height: 8),
                                           Row(
@@ -616,32 +654,179 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _InfoTile(
-                                  icon: Icons.phone_outlined,
-                                  title: 'Phone Number',
-                                  value: phoneNumber ?? 'Not Provided',
-                                  primaryText: primaryText,
-                                  secondaryText: secondaryText,
-                                  background: cardBg,
-                                  borderColor: borderColor,
-                                ),
+                          child: _InfoTile(
+                            icon: Icons.phone_outlined,
+                            title: 'Phone Number',
+                            value: phoneNumber ?? 'Not Provided',
+                            primaryText: primaryText,
+                            secondaryText: secondaryText,
+                            background: cardBg,
+                            borderColor: borderColor,
+                          ),
+                        ),
+                      ),
+
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: borderColor.withOpacity(0.7),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _InfoTile(
-                                  icon: Icons.category_outlined,
-                                  title: 'Category',
-                                  value: category ?? 'General',
-                                  primaryText: primaryText,
-                                  secondaryText: secondaryText,
-                                  background: cardBg,
-                                  borderColor: borderColor,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.category_outlined,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Categories',
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 14),
+                                if (_isEditing) ...[
+                                  DropdownButtonFormField<String>(
+                                    key: ValueKey(
+                                      _selectedCategories.join('|'),
+                                    ),
+                                    value: null,
+                                    items: _availableCategories
+                                        .where(
+                                          (option) => !_selectedCategories.any(
+                                            (selected) =>
+                                                selected.toLowerCase() ==
+                                                option.toLowerCase(),
+                                          ),
+                                        )
+                                        .map(
+                                          (option) => DropdownMenuItem(
+                                            value: option,
+                                            child: Text(option),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (selection) {
+                                      if (selection == null) return;
+                                      setState(() {
+                                        _selectedCategories = _uniqueCategories(
+                                          [..._selectedCategories, selection],
+                                        );
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'Select category',
+                                      isDense: true,
+                                      filled: true,
+                                      fillColor: isDarkMode
+                                          ? Colors.black26
+                                          : Colors.grey.shade100,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: _selectedCategories
+                                        .map(
+                                          (selectedCategory) => Chip(
+                                            label: Text(
+                                              selectedCategory,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            deleteIcon: const Icon(
+                                              Icons.close,
+                                              size: 16,
+                                            ),
+                                            onDeleted: () {
+                                              setState(() {
+                                                _selectedCategories.remove(
+                                                  selectedCategory,
+                                                );
+                                              });
+                                            },
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ] else if (_selectedCategories.isNotEmpty)
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: _selectedCategories
+                                        .map(
+                                          (selectedCategory) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primaryPink
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: AppColors.primaryPink
+                                                    .withOpacity(0.2),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              selectedCategory,
+                                              style: const TextStyle(
+                                                color: AppColors.primaryPink,
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  )
+                                else
+                                  Text(
+                                    'No categories selected',
+                                    style: TextStyle(
+                                      color: secondaryText,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

@@ -19,7 +19,7 @@ class CallHistoryPage extends StatefulWidget {
 class _CallHistoryPageState extends State {
   final UserApiService _apiService = UserApiService();
   final ThemeController themeController = Get.find();
-  static final UserModel? user = AppConfig.user;
+  static UserModel? user = AppConfig.user;
   bool _isLoading = true;
   bool _isLoadingMore = false;
   List _historyList = [];
@@ -38,7 +38,9 @@ class _CallHistoryPageState extends State {
   @override
   void initState() {
     super.initState();
+
     _apiService.onInit();
+    _updateuserData();
     _fetchHistoryData(page: 1, reset: true);
 
     _scrollController.addListener(() {
@@ -48,6 +50,14 @@ class _CallHistoryPageState extends State {
           _loadMoreData();
         }
       }
+    });
+  }
+
+  Future _updateuserData() async {
+    final res = await UserApiService().fetchUserProfile();
+
+    setState(() {
+      user = res;
     });
   }
 
@@ -235,7 +245,7 @@ class _CallHistoryPageState extends State {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                user!.name ?? "Unkown",
+                                "${user!.name}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
