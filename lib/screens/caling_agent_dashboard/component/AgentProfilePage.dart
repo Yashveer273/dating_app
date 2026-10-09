@@ -157,9 +157,9 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     );
 
     if (profile?.topics != null) {
-      _currentTopics = List<String>.from(profile!.topics!);
+      _currentTopics = List<String>.from(profile!.topics);
     } else if (agent?.topics != null) {
-      _currentTopics = List<String>.from(agent!.topics!);
+      _currentTopics = List<String>.from(agent!.topics);
     }
   }
 
@@ -342,7 +342,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       final agentId = profile?.agentId ?? agent?.agentId;
       final phoneNumber = profile?.phoneNumber ?? agent?.phoneNumber;
       final bioText = profile?.bio ?? agent?.bio;
-      final category = _selectedCategories.join(', ');
+      _selectedCategories.join(', ');
       final location = profile?.location ?? agent?.firebaseLocation ?? 'India';
 
       return AppBackground(

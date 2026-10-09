@@ -237,12 +237,10 @@ class SharedCallController {
       };
 
       _peerConnection!.onIceCandidate = (candidate) {
-        if (candidate != null) {
-          _socket?.emit('webrtc-ice-candidate', {
-            'roomId': roomId,
-            'candidate': candidate.toMap(),
-          });
-        }
+        _socket?.emit('webrtc-ice-candidate', {
+          'roomId': roomId,
+          'candidate': candidate.toMap(),
+        });
       };
     } catch (e) {
       debugPrint("Error starting local stream on Web: $e");

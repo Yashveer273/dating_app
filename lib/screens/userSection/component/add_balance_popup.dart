@@ -79,10 +79,6 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
   double get virtualBonusAmount => extraPercentAmount + couponBonus;
 
   String _formatCouponLabel(CouponOffer coupon) {
-    final dateText = coupon.expiresAt != null
-        ? '${coupon.expiresAt!.day.toString().padLeft(2, '0')}/${coupon.expiresAt!.month.toString().padLeft(2, '0')}/${coupon.expiresAt!.year}'
-        : 'No expiry';
-
     return '${coupon.code} • Add ₹${coupon.bonusAmount.toStringAsFixed(0)} Bonus';
   }
 

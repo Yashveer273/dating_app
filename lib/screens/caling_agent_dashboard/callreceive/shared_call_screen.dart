@@ -33,7 +33,6 @@ class _SharedCallScreenState extends State<SharedCallScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final SharedCallController _controller;
   late final AnimationController _endingPulseController;
-  late final Animation<double> _endingPulse;
 
   // State variables jo widget properties से इनिशियलाइज होंगी
   late final String _roomId;
@@ -63,9 +62,6 @@ class _SharedCallScreenState extends State<SharedCallScreen>
     );
 
     // 🟢 Explicitly typed Animation taaki type mismatch error na aaye
-    _endingPulse = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _endingPulseController, curve: Curves.easeInOut),
-    );
 
     _controller = SharedCallController(
       roomId: _roomId,
