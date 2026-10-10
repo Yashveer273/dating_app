@@ -4,7 +4,8 @@ import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storag
 import 'package:talk24loves/screens/userSection/model/user_model.dart';
 
 class AppConfig {
-  static const String rootBaseUrl = "http://192.168.1.11:3000";
+  static const String rootBaseUrl = "https://server.omipet.in";
+  //  http://192.168.1.11:3000
   static UserModel? get user => UserStorage.getUser();
   static AgentModel? get agent => AgentStorage.getAgent();
 }
