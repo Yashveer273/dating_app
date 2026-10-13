@@ -11,46 +11,42 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:talk24loves/Api/call_api_service.dart';
 import 'package:talk24loves/Api/AppConfig.dart';
 
-class FloatingReactionIcon {
-  final int id;
-  final IconData icon;
-  final Color color;
-  final double startX;
-  FloatingReactionIcon({
-    required this.id,
-    required this.icon,
-    required this.color,
-    required this.startX,
-  });
-}
+// मॉड्यूलर हैंडल्स इम्पोर्ट करें
+import 'CallAudioHandler.dart';
+import 'CallVideoHandler.dart';
+import 'CallReactionHandler.dart';
 
-class SharedCallController with WidgetsBindingObserver {
+class SharedCallController
+    with
+        WidgetsBindingObserver,
+        CallAudioHandler,
+        CallVideoHandler,
+        CallReactionHandler {
   final String roomId;
   final String agentId;
-  final String callType; // 'voice' ya 'video'
+  final String callType; // 'voice' या 'video'
   final bool isUserCaller;
   final VoidCallback onStateUpdated;
   final VoidCallback onExit;
 
-  bool isMuted = false;
-  bool isAgentMuted = false;
-  bool isUserMuted = false;
-
+  @override
   bool get isRemoteMuted => isUserCaller ? isAgentMuted : isUserMuted;
 
-  bool isCameraOff = false;
-  bool isRemoteCameraOff = false;
-  bool isLocalFullScreen = false;
-  bool isSpeakerOn = false;
+  @override
+  IO.Socket? get socket => _socket;
 
-  bool isLoadingRemoteVideo = true;
+  @override
+  String get roomIdRef => roomId;
+
+  @override
+  VoidCallback get onStateUpdatedRef => onStateUpdated;
 
   int secondsElapsed = 0;
   int? maxCallDurationSeconds;
   double? walletBalanceAtCall;
   double? callRatePerMinute;
-  DateTime? _acceptedAt;
   Timer? _callTimer;
+  DateTime? _acceptedAt;
   bool _isBudgetSyncInProgress = false;
   StreamSubscription? roomSubscription;
   late final DateTime callStartTime;
@@ -60,19 +56,12 @@ class SharedCallController with WidgetsBindingObserver {
   bool _isInForeground = true;
 
   RTCPeerConnection? _peerConnection;
-  MediaStream? _localStream;
-  MediaStream? remoteStream;
-  late final RTCVideoRenderer localRenderer;
-  late final RTCVideoRenderer remoteRenderer;
   IO.Socket? _socket;
 
   final List<RTCIceCandidate> _iceCandidatesQueue = [];
   bool _isRemoteDescriptionSet = false;
   bool _isCreatingOffer = false;
   bool _isInitialized = false;
-
-  final List floatingReactions = [];
-  Timestamp? lastProcessedReactionTime;
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -88,8 +77,7 @@ class SharedCallController with WidgetsBindingObserver {
     this.walletBalanceAtCall,
     this.callRatePerMinute,
   }) {
-    localRenderer = RTCVideoRenderer();
-    remoteRenderer = RTCVideoRenderer();
+    initRenderers();
     _updateCalculatedMaxDuration();
     WidgetsBinding.instance.addObserver(this);
   }
@@ -133,13 +121,7 @@ class SharedCallController with WidgetsBindingObserver {
     if (_isInitialized) return;
     _isInitialized = true;
     callStartTime = DateTime.now();
-
-    try {
-      await localRenderer.initialize();
-      await remoteRenderer.initialize();
-    } catch (e) {
-      debugPrint("⚠️ Renderer init error: $e");
-    }
+    _acceptedAt = DateTime.now(); // 🟢 यहाँ इनिशियलाइज कर लें
 
     bool granted = await _requestPermissions();
     if (!granted) {
@@ -147,10 +129,11 @@ class SharedCallController with WidgetsBindingObserver {
       return;
     }
 
-    await _startLocalStream();
+    await _startLocalStreamAndAudioRouting();
     _initSocketAndWebRTC();
     _startCallTimer();
     _listenToRoomUpdates();
+    initReactionListener();
 
     if (!kIsWeb) {
       await _initNotifications();
@@ -178,11 +161,16 @@ class SharedCallController with WidgetsBindingObserver {
     }
   }
 
-  Future _startLocalStream() async {
-    if (_localStream != null) return;
+  Future _startLocalStreamAndAudioRouting() async {
+    if (localStream != null) return;
 
+    // 🟢 ऑडियो कॉल के लिए बेहतर ऑडियो कॉन्स्टेंट्स ताकि आवाज साफ़ और दोनों तरफ जाए
     final Map<String, dynamic> mediaConstraints = {
-      'audio': true,
+      'audio': {
+        'echoCancellation': true,
+        'noiseSuppression': true,
+        'autoGainControl': true,
+      },
       'video': (callType == 'voice' || isCameraOff)
           ? false
           : {
@@ -193,12 +181,17 @@ class SharedCallController with WidgetsBindingObserver {
     };
 
     try {
-      _localStream = await navigator.mediaDevices.getUserMedia(
-        mediaConstraints,
-      );
-      if (callType == 'video' && _localStream != null) {
-        localRenderer.srcObject = _localStream;
-        debugPrint("🟢 [LOCAL STREAM] Camera and Mic loaded successfully.");
+      localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+
+      // ऑडियो कॉल पर बाय-डिफ़ॉल्ट स्पीकर ऑन या इयरपीस सेट करें
+      if (callType == 'voice') {
+        Helper.setSpeakerphoneOn(true);
+        isSpeakerOn = true;
+      }
+
+      if (callType == 'video' && localStream != null) {
+        localRenderer.srcObject = localStream;
+        debugPrint("🟢 [LOCAL STREAM] Video & Audio loaded successfully.");
       }
       onStateUpdated();
     } catch (e) {
@@ -298,9 +291,9 @@ class SharedCallController with WidgetsBindingObserver {
         }
       };
 
-      if (_localStream != null) {
-        _localStream!.getTracks().forEach((track) {
-          _peerConnection!.addTrack(track, _localStream!);
+      if (localStream != null) {
+        localStream!.getTracks().forEach((track) {
+          _peerConnection!.addTrack(track, localStream!);
         });
       }
 
@@ -403,12 +396,7 @@ class SharedCallController with WidgetsBindingObserver {
   }
 
   Future toggleMuted() async {
-    isMuted = !isMuted;
-    if (_localStream != null) {
-      for (var track in _localStream!.getAudioTracks()) {
-        track.enabled = !isMuted;
-      }
-    }
+    toggleMutedLogic(); // AudioHandler mixin से
     onStateUpdated();
 
     try {
@@ -424,8 +412,8 @@ class SharedCallController with WidgetsBindingObserver {
   Future toggleCamera() async {
     if (callType != 'video') return;
     isCameraOff = !isCameraOff;
-    if (_localStream != null) {
-      for (var track in _localStream!.getVideoTracks()) {
+    if (localStream != null) {
+      for (var track in localStream!.getVideoTracks()) {
         track.enabled = !isCameraOff;
       }
     }
@@ -442,8 +430,7 @@ class SharedCallController with WidgetsBindingObserver {
   }
 
   Future toggleSpeaker() async {
-    isSpeakerOn = !isSpeakerOn;
-    Helper.setSpeakerphoneOn(isSpeakerOn);
+    toggleSpeakerLogic(); // AudioHandler mixin से
     onStateUpdated();
   }
 
@@ -570,8 +557,6 @@ class SharedCallController with WidgetsBindingObserver {
         });
   }
 
-  Future sendReaction(String iconKey) async {}
-
   Future hangupCall() async {
     if (isCallEnded || isActionInProgress) return;
     isActionInProgress = true;
@@ -626,7 +611,6 @@ class SharedCallController with WidgetsBindingObserver {
     safeExit();
   }
 
-  // 🟢 Complete Cleanup taaki dusri call par socket aur peer connection fresh rahein
   void safeExit() {
     if (_isExiting) return;
     _isExiting = true;
@@ -642,12 +626,12 @@ class SharedCallController with WidgetsBindingObserver {
       _socket?.dispose();
       _socket = null;
 
-      if (_localStream != null) {
-        for (var track in _localStream!.getTracks()) {
+      if (localStream != null) {
+        for (var track in localStream!.getTracks()) {
           track.stop();
         }
-        _localStream?.dispose();
-        _localStream = null;
+        localStream?.dispose();
+        localStream = null;
       }
 
       if (remoteStream != null) {
@@ -658,10 +642,7 @@ class SharedCallController with WidgetsBindingObserver {
         remoteStream = null;
       }
 
-      try {
-        localRenderer.srcObject = null;
-        remoteRenderer.srcObject = null;
-      } catch (_) {}
+      disposeRenderers();
 
       _peerConnection?.close();
       _peerConnection?.dispose();
@@ -672,7 +653,7 @@ class SharedCallController with WidgetsBindingObserver {
       _isCreatingOffer = false;
 
       Helper.setSpeakerphoneOn(false);
-      debugPrint("✅ Call exited cleanly and all states reset.");
+      debugPrint("✅ Call exited cleanly and all modular states reset.");
     } catch (e) {
       debugPrint("⚠️ Error during safeExit cleanup: $e");
     }

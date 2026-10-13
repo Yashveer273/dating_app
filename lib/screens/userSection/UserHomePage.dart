@@ -177,7 +177,7 @@ class _UserHomePageState extends State<UserHomePage> {
             shaderCallback: (bounds) =>
                 AppColors.pinkGradient.createShader(bounds),
             child: const Text(
-              'Connecto',
+              'Talk 24',
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
