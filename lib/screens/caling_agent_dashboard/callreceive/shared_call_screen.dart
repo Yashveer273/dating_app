@@ -295,6 +295,59 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                   ),
                 );
               }),
+              Positioned.fill(
+                child: showLocalAsBig
+                    ? _buildVideoPlaceholder(
+                        isCameraOff: _controller.isCameraOff,
+                        isMuted: _controller.isMuted,
+                        label: "You",
+                        renderer: _controller.localRenderer,
+                        isRemote: false,
+                      )
+                    : _callType == 'video'
+                    ? (_controller.isLoadingRemoteVideo
+                          ? Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppColors.darkBgTop,
+                                    AppColors.darkBgBottom,
+                                  ],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      color: AppColors
+                                          .primaryPink, // 🟢 पिंक कलर का लोडर
+                                      strokeWidth: 3,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      "Connecting video...",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : _buildVideoPlaceholder(
+                              isCameraOff: _controller.isRemoteCameraOff,
+                              isMuted: _controller.isRemoteMuted,
+                              label: "Match",
+                              renderer: _controller.remoteRenderer,
+                              isRemote: true,
+                            ))
+                    : _buildAudioCallUI(),
+              ),
               if (_callType == 'video')
                 Positioned(
                   top: 20,

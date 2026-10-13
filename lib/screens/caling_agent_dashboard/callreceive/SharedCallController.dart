@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -23,7 +24,7 @@ class FloatingReactionIcon {
   });
 }
 
-class SharedCallController {
+class SharedCallController with WidgetsBindingObserver {
   final String roomId;
   final String agentId;
   final String callType; // 'voice' ya 'video'
@@ -34,11 +35,15 @@ class SharedCallController {
   bool isMuted = false;
   bool isAgentMuted = false;
   bool isUserMuted = false;
+
   bool get isRemoteMuted => isUserCaller ? isAgentMuted : isUserMuted;
+
   bool isCameraOff = false;
   bool isRemoteCameraOff = false;
   bool isLocalFullScreen = false;
   bool isSpeakerOn = false;
+
+  bool isLoadingRemoteVideo = true;
 
   int secondsElapsed = 0;
   int? maxCallDurationSeconds;
@@ -52,16 +57,15 @@ class SharedCallController {
   bool isCallEnded = false;
   bool isActionInProgress = false;
   bool _isExiting = false;
+  bool _isInForeground = true;
 
-  // WebRTC & Socket State Variables
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? remoteStream;
-  final RTCVideoRenderer localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
+  late final RTCVideoRenderer localRenderer;
+  late final RTCVideoRenderer remoteRenderer;
   IO.Socket? _socket;
 
-  // ICE Candidates Queue & Guards
   final List<RTCIceCandidate> _iceCandidatesQueue = [];
   bool _isRemoteDescriptionSet = false;
   bool _isCreatingOffer = false;
@@ -84,7 +88,10 @@ class SharedCallController {
     this.walletBalanceAtCall,
     this.callRatePerMinute,
   }) {
+    localRenderer = RTCVideoRenderer();
+    remoteRenderer = RTCVideoRenderer();
     _updateCalculatedMaxDuration();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   void _updateCalculatedMaxDuration() {
@@ -100,28 +107,58 @@ class SharedCallController {
     }
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _isInForeground = true;
+      if (!kIsWeb) {
+        flutterLocalNotificationsPlugin.cancel(id: roomId.hashCode);
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _isInForeground = false;
+      if (!kIsWeb) {
+        _showPersistentCallNotification();
+      }
+    } else if (state == AppLifecycleState.detached) {
+      forceCleanupOnExit(
+        endedBy: isUserCaller ? 'user' : 'agent',
+        disconnectReason: 'app_terminated',
+      );
+    }
+    super.didChangeAppLifecycleState(state);
+  }
+
   Future init() async {
     if (_isInitialized) return;
     _isInitialized = true;
     callStartTime = DateTime.now();
 
-    if (callType == 'video') {
+    try {
       await localRenderer.initialize();
       await remoteRenderer.initialize();
+    } catch (e) {
+      debugPrint("⚠️ Renderer init error: $e");
     }
 
     bool granted = await _requestPermissions();
     if (!granted) {
       debugPrint("❌ Microphone or Camera permission denied!");
+      return;
     }
 
+    await _startLocalStream();
     _initSocketAndWebRTC();
     _startCallTimer();
     _listenToRoomUpdates();
-    _initNotificationsAndShowOngoing();
+
+    if (!kIsWeb) {
+      await _initNotifications();
+    }
   }
 
   Future<bool> _requestPermissions() async {
+    if (kIsWeb) return true;
     try {
       Map<Permission, PermissionStatus> statuses = await [
         Permission.microphone,
@@ -136,8 +173,36 @@ class SharedCallController {
 
       return micGranted && camGranted;
     } catch (e) {
-      debugPrint("⚠️ Permission request error: $e");
+      debugPrint("⚠️ Permission error: $e");
       return true;
+    }
+  }
+
+  Future _startLocalStream() async {
+    if (_localStream != null) return;
+
+    final Map<String, dynamic> mediaConstraints = {
+      'audio': true,
+      'video': (callType == 'voice' || isCameraOff)
+          ? false
+          : {
+              'width': {'ideal': 640},
+              'height': {'ideal': 480},
+              'frameRate': {'ideal': 30},
+            },
+    };
+
+    try {
+      _localStream = await navigator.mediaDevices.getUserMedia(
+        mediaConstraints,
+      );
+      if (callType == 'video' && _localStream != null) {
+        localRenderer.srcObject = _localStream;
+        debugPrint("🟢 [LOCAL STREAM] Camera and Mic loaded successfully.");
+      }
+      onStateUpdated();
+    } catch (e) {
+      debugPrint("❌ Error getting user media: $e");
     }
   }
 
@@ -159,8 +224,15 @@ class SharedCallController {
 
     _socket!.on('room-joined', (data) async {
       debugPrint("🏠 Joined room successfully: $data");
-      await _startLocalStreamAndPeerConnection();
-      // Sirf caller ek baar offer banaye
+      await _startPeerConnectionOnly();
+      if (isUserCaller && _peerConnection != null) {
+        await _createAndSendOffer();
+      }
+    });
+
+    _socket!.on('user-joined', (data) async {
+      debugPrint("👤 Another user joined room: $data");
+      await _startPeerConnectionOnly();
       if (isUserCaller && _peerConnection != null) {
         await _createAndSendOffer();
       }
@@ -193,124 +265,68 @@ class SharedCallController {
       }
     });
 
-    // Agar dusra user disconnect ya leave hota hai toh call automatically handle ho
     _socket!.on('user-left', (data) async {
       debugPrint("👤 User left room: $data");
       safeExit();
     });
   }
 
-  Future _startLocalStreamAndPeerConnection() async {
+  Future _startPeerConnectionOnly() async {
     if (_peerConnection != null) return;
 
-    final Map<String, dynamic> mediaConstraints = {
-      'audio': true,
-      'video': (callType == 'voice' || isCameraOff)
-          ? false
-          : {
-              'width': {'ideal': 640},
-              'height': {'ideal': 480},
-              'frameRate': {'ideal': 30},
-            },
+    final Map<String, dynamic> configuration = {
+      'iceServers': [
+        {'urls': 'stun:stun.l.google.com:19302'},
+        {'urls': 'stun:stun1.l.google.com:19302'},
+      ],
     };
 
     try {
-      _localStream = await navigator.mediaDevices.getUserMedia(
-        mediaConstraints,
-      );
-
-      // 🟢 Local Stream Logs
-      debugPrint("🟢 [LOCAL STREAM]getUserMedia सफल रहा।");
-      debugPrint(
-        "🟢 [LOCAL STREAM] Audio Tracks की संख्या: ${_localStream?.getAudioTracks().length}",
-      );
-      debugPrint(
-        "🟢 [LOCAL STREAM] Video Tracks की संख्या: ${_localStream?.getVideoTracks().length}",
-      );
-
-      if (callType == 'video' && _localStream != null) {
-        localRenderer.srcObject = _localStream;
-        debugPrint(
-          "🟢 [LOCAL RENDERER] Local video stream successfully assigned to localRenderer!",
-        );
-      }
-
-      onStateUpdated();
-
-      final Map<String, dynamic> configuration = {
-        'iceServers': [
-          {'urls': 'stun:stun.l.google.com:19302'},
-          {'urls': 'stun:stun1.l.google.com:19302'},
-        ],
-      };
-
       _peerConnection = await createPeerConnection(configuration);
 
       _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
         debugPrint("🔗 [WebRTC CONNECTION STATE]: $state");
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+          isLoadingRemoteVideo = false;
+          onStateUpdated();
+        }
+        if (state ==
+                RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
+            state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+            state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          safeExit();
+        }
       };
 
-      _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
-        debugPrint("❄️ [ICE CONNECTION STATE]: $state");
-      };
+      if (_localStream != null) {
+        _localStream!.getTracks().forEach((track) {
+          _peerConnection!.addTrack(track, _localStream!);
+        });
+      }
 
-      _localStream!.getTracks().forEach((track) {
-        _peerConnection!.addTrack(track, _localStream!);
-        debugPrint(
-          "📤 [PEER CONNECTION] Added local track to peer connection: ${track.kind} (Enabled: ${track.enabled})",
-        );
-      });
-
-      // 🟢 4. रिमोट ट्रैक हैंडलर (यहाँ सबसे महत्वपूर्ण लॉग्स हैं)
       _peerConnection!.onTrack = (RTCTrackEvent event) {
-        debugPrint("📥 [REMOTE TRACK EVENT FIRED!] ------------------");
         debugPrint(
-          "📥 Track Kind: ${event.track.kind} | Track ID: ${event.track.id} | Enabled: ${event.track.enabled}",
+          "📥 [REMOTE TRACK EVENT] Streams count: ${event.streams.length}",
         );
-        debugPrint("📥 Streams attached in event: ${event.streams.length}");
-
         if (event.streams.isNotEmpty) {
           remoteStream = event.streams[0];
-
-          debugPrint(
-            "📥 [REMOTE STREAM RECEIVED] Stream ID: ${remoteStream?.id}",
-          );
-          debugPrint(
-            "📥 Remote Audio Tracks count: ${remoteStream?.getAudioTracks().length}",
-          );
-          debugPrint(
-            "📥 Remote Video Tracks count: ${remoteStream?.getVideoTracks().length}",
-          );
-
           if (callType == 'video') {
             remoteRenderer.srcObject = remoteStream;
-            debugPrint(
-              "✅ [REMOTE RENDERER] Remote video stream successfully bound to remoteRenderer!",
-            );
-          } else {
-            debugPrint(
-              "✅ [REMOTE AUDIO] Remote audio stream active for voice call.",
-            );
+            debugPrint("✅ [REMOTE RENDERER] Remote video bound successfully!");
           }
+          isLoadingRemoteVideo = false;
           onStateUpdated();
-        } else {
-          debugPrint(
-            "⚠️ [WARNING] onTrack event received but event.streams is EMPTY!",
-          );
         }
       };
 
       _peerConnection!.onIceCandidate = (candidate) {
-        debugPrint(
-          "🧊 [ICE CANDIDATE GENERATED] Sending candidate to socket...",
-        );
         _socket?.emit('webrtc-ice-candidate', {
           'roomId': roomId,
           'candidate': candidate.toMap(),
         });
       };
     } catch (e) {
-      debugPrint("❌ [ERROR] Error in _startLocalStreamAndPeerConnection: $e");
+      debugPrint("❌ Error creating peer connection: $e");
     }
   }
 
@@ -326,7 +342,6 @@ class SharedCallController {
 
       await _peerConnection!.setLocalDescription(offer);
       _socket?.emit('webrtc-offer', {'roomId': roomId, 'offer': offer.toMap()});
-      debugPrint("📤 WebRTC Offer created and sent successfully.");
     } catch (e) {
       debugPrint("❌ Error creating offer: $e");
     } finally {
@@ -337,7 +352,7 @@ class SharedCallController {
   Future _handleIncomingOffer(Map offerMap) async {
     try {
       if (_peerConnection == null) {
-        await _startLocalStreamAndPeerConnection();
+        await _startPeerConnectionOnly();
       }
       if (_peerConnection == null) return;
 
@@ -363,7 +378,6 @@ class SharedCallController {
         'roomId': roomId,
         'answer': answer.toMap(),
       });
-      debugPrint("📥 Incoming offer handled & answer sent.");
     } catch (e) {
       debugPrint("❌ Error handling offer: $e");
     }
@@ -383,7 +397,6 @@ class SharedCallController {
         await _peerConnection!.addCandidate(candidate);
       }
       _iceCandidatesQueue.clear();
-      debugPrint("📥 Incoming answer handled successfully.");
     } catch (e) {
       debugPrint("❌ Error handling answer: $e");
     }
@@ -397,7 +410,6 @@ class SharedCallController {
       }
     }
     onStateUpdated();
-    await _showPersistentCallNotification();
 
     try {
       final updateField = isUserCaller ? 'userMuted' : 'agentMuted';
@@ -433,10 +445,10 @@ class SharedCallController {
     isSpeakerOn = !isSpeakerOn;
     Helper.setSpeakerphoneOn(isSpeakerOn);
     onStateUpdated();
-    await _showPersistentCallNotification();
   }
 
-  Future _initNotificationsAndShowOngoing() async {
+  Future _initNotifications() async {
+    if (kIsWeb) return;
     try {
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -446,27 +458,20 @@ class SharedCallController {
       await flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
       );
-
-      final androidPlugin = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-      if (androidPlugin != null) {
-        await androidPlugin.requestNotificationsPermission();
-      }
-
-      await _showPersistentCallNotification();
     } catch (e) {
       debugPrint("⚠️ Notification init warning: $e");
     }
   }
 
   Future _showPersistentCallNotification() async {
+    if (kIsWeb || _isInForeground) return;
+
     int notificationId = roomId.hashCode;
     AndroidNotificationDetails androidPlatformChannelSpecifics =
         const AndroidNotificationDetails(
           'ongoing_call_channel_id',
           'Ongoing Call',
+          channelDescription: 'Active call status',
           importance: Importance.max,
           priority: Priority.high,
           ongoing: true,
@@ -476,11 +481,13 @@ class SharedCallController {
     NotificationDetails platformChannelDetails = NotificationDetails(
       android: androidPlatformChannelSpecifics,
     );
+
     await flutterLocalNotificationsPlugin.show(
       id: notificationId,
-      title: 'Ongoing Call (${formatTime(secondsElapsed)})',
-      body: 'Tap to manage call controls',
+      title: callType == 'video' ? 'Ongoing Video Call' : 'Ongoing Audio Call',
+      body: 'Tap to return to call',
       notificationDetails: platformChannelDetails,
+      payload: 'return_to_call',
     );
   }
 
@@ -570,6 +577,11 @@ class SharedCallController {
     isActionInProgress = true;
     onStateUpdated();
     try {
+      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
+        'status': 'ended',
+        'endedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       await CallApiService.endCall(
         roomId: roomId,
         agentId: agentId,
@@ -593,6 +605,11 @@ class SharedCallController {
     isCallEnded = true;
 
     try {
+      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
+        'status': 'ended',
+        'endedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       await CallApiService.endCall(
         roomId: roomId,
         agentId: agentId,
@@ -602,7 +619,6 @@ class SharedCallController {
         endTime: DateTime.now(),
         durationInSeconds: secondsElapsed,
       );
-      debugPrint("🧹 Force cleanup executed successfully.");
     } catch (e) {
       debugPrint("❌ Error in force cleanup: $e");
     }
@@ -610,16 +626,22 @@ class SharedCallController {
     safeExit();
   }
 
+  // 🟢 Complete Cleanup taaki dusri call par socket aur peer connection fresh rahein
   void safeExit() {
     if (_isExiting) return;
     _isExiting = true;
     isCallEnded = true;
 
+    WidgetsBinding.instance.removeObserver(this);
     _callTimer?.cancel();
     roomSubscription?.cancel();
-    _socket?.disconnect();
 
     try {
+      _socket?.clearListeners();
+      _socket?.disconnect();
+      _socket?.dispose();
+      _socket = null;
+
       if (_localStream != null) {
         for (var track in _localStream!.getTracks()) {
           track.stop();
@@ -628,21 +650,36 @@ class SharedCallController {
         _localStream = null;
       }
 
-      remoteStream?.dispose();
-      remoteStream = null;
-
-      if (callType == 'video') {
-        localRenderer.dispose();
-        remoteRenderer.dispose();
+      if (remoteStream != null) {
+        for (var track in remoteStream!.getTracks()) {
+          track.stop();
+        }
+        remoteStream?.dispose();
+        remoteStream = null;
       }
 
+      try {
+        localRenderer.srcObject = null;
+        remoteRenderer.srcObject = null;
+      } catch (_) {}
+
+      _peerConnection?.close();
       _peerConnection?.dispose();
       _peerConnection = null;
+
+      _iceCandidatesQueue.clear();
+      _isRemoteDescriptionSet = false;
+      _isCreatingOffer = false;
+
+      Helper.setSpeakerphoneOn(false);
+      debugPrint("✅ Call exited cleanly and all states reset.");
     } catch (e) {
       debugPrint("⚠️ Error during safeExit cleanup: $e");
     }
 
-    flutterLocalNotificationsPlugin.cancel(id: roomId.hashCode);
+    if (!kIsWeb) {
+      flutterLocalNotificationsPlugin.cancel(id: roomId.hashCode);
+    }
     onExit();
   }
 

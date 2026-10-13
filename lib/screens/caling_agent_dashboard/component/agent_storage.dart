@@ -16,6 +16,7 @@ class AgentStorage {
 
   static Future<void> saveAgent(AgentModel agent) async {
     await _storage.write('agentModel', agent.toJson());
+    await _storage.write('role', agent.role);
   }
 
   static bool hasAgent() {

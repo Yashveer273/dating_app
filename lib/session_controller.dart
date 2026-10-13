@@ -18,7 +18,7 @@ class SessionController extends GetxController {
     final AgentModel? agent = AgentStorage.getAgent();
 
     role.value = UserStorage.role.value;
-
+    printInfo(info: "${role}.....");
     if (role.value == 'agent' && agent != null) {
       currentScreen.value = CallingAgentMainFile();
     } else if (role.value == 'user' && user != null) {
