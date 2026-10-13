@@ -67,8 +67,9 @@ class DefaultFirebaseOptions {
     projectId: 'grozar',
     databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
     storageBucket: 'grozar.firebasestorage.app',
-    iosClientId: '560801349976-obrheu92uv2a0tfidnkn3uu7je079qja.apps.googleusercontent.com',
-    iosBundleId: 'com.datingapp.talk24loves',
+    iosClientId:
+        '560801349976-obrheu92uv2a0tfidnkn3uu7je079qja.apps.googleusercontent.com',
+    iosBundleId: 'com.talk.apk',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -78,8 +79,9 @@ class DefaultFirebaseOptions {
     projectId: 'grozar',
     databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
     storageBucket: 'grozar.firebasestorage.app',
-    iosClientId: '560801349976-obrheu92uv2a0tfidnkn3uu7je079qja.apps.googleusercontent.com',
-    iosBundleId: 'com.datingapp.talk24loves',
+    iosClientId:
+        '560801349976-obrheu92uv2a0tfidnkn3uu7je079qja.apps.googleusercontent.com',
+    iosBundleId: 'com.talk.apk',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

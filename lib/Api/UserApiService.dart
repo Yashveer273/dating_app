@@ -817,4 +817,89 @@ class UserApiService extends GetConnect {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  Future<Map<String, dynamic>> getAgentCallTypes() async {
+    String userId = AppConfig.agent?.id ?? "";
+    if (userId.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Agent ID is missing',
+        'statusCode': 400,
+      };
+    }
+
+    try {
+      final response = await get(
+        '${AppConfig.rootBaseUrl}/api/agents/me/getAgentCallTypes/$userId?userId=$userId',
+        headers: _agentHeaders(),
+      );
+
+      print("Get Agent Call Types Response: ${response.body}");
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error fetching agent call types: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Agent ki audio aur video call availability update karne ke liye (Front-end validation ke saath)
+  Future<Map<String, dynamic>> updateAgentCallTypes({
+    required bool isAudioAvailable,
+    required bool isVideoAvailable,
+  }) async {
+    // Front-end Validation: At least one call type must be true
+    if (!isAudioAvailable && !isVideoAvailable) {
+      return {
+        'success': false,
+        'message':
+            'Validation Error: At least one call type (Audio or Video) must be enabled.',
+      };
+    }
+
+    String userId = AppConfig.agent?.id ?? "";
+    if (userId.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Agent ID is missing',
+        'statusCode': 400,
+      };
+    }
+
+    try {
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/me/updateAgentCallTypes/$userId?userId=$userId',
+        {
+          'isAudioAvailable': isAudioAvailable,
+          'isVideoAvailable': isVideoAvailable,
+        },
+        headers: {..._agentHeaders(), 'Content-Type': 'application/json'},
+      );
+
+      print("Update Agent Call Types Response: ${response.body}");
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+        'rawResponse': response.body,
+      };
+    } catch (e) {
+      print('Error updating agent call types: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

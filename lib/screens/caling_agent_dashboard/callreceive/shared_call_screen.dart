@@ -65,6 +65,7 @@ class _SharedCallScreenState extends State<SharedCallScreen>
 
     _controller = SharedCallController(
       roomId: _roomId,
+      callType: _callType,
       agentId: _agentId,
       isUserCaller: _isUserCaller,
       maxCallDurationSeconds: widget.maxDurationSeconds,
@@ -86,6 +87,9 @@ class _SharedCallScreenState extends State<SharedCallScreen>
       onExit: () {
         if (mounted && Navigator.canPop(context)) {
           Navigator.of(context).pop();
+        } else {
+          // यदि canPop फॉल्स हो, तो भी रूट से बाहर निकलने के लिए:
+          Navigator.of(context, rootNavigator: true).pop();
         }
       },
     );

@@ -98,6 +98,7 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
       if (data['success'] != true) {
         if (mounted) {
           setState(() => isLoading = false);
+          Navigator.pop(context);
         }
         return;
       }

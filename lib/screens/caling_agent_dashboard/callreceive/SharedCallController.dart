@@ -8,7 +8,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:talk24loves/Api/call_api_service.dart';
-import 'package:talk24loves/Api/AppConfig.dart'; // AppConfig se socket URL lene ke liye
+import 'package:talk24loves/Api/AppConfig.dart';
 
 class FloatingReactionIcon {
   final int id;
@@ -26,6 +26,7 @@ class FloatingReactionIcon {
 class SharedCallController {
   final String roomId;
   final String agentId;
+  final String callType; // 'voice' ya 'video'
   final bool isUserCaller;
   final VoidCallback onStateUpdated;
   final VoidCallback onExit;
@@ -50,14 +51,21 @@ class SharedCallController {
   late final DateTime callStartTime;
   bool isCallEnded = false;
   bool isActionInProgress = false;
+  bool _isExiting = false;
 
-  // 🟢 WebRTC & Socket State Variables
+  // WebRTC & Socket State Variables
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? remoteStream;
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
   IO.Socket? _socket;
+
+  // ICE Candidates Queue & Guards
+  final List<RTCIceCandidate> _iceCandidatesQueue = [];
+  bool _isRemoteDescriptionSet = false;
+  bool _isCreatingOffer = false;
+  bool _isInitialized = false;
 
   final List floatingReactions = [];
   Timestamp? lastProcessedReactionTime;
@@ -68,6 +76,7 @@ class SharedCallController {
   SharedCallController({
     required this.roomId,
     required this.agentId,
+    required this.callType,
     required this.isUserCaller,
     required this.onStateUpdated,
     required this.onExit,
@@ -92,76 +101,67 @@ class SharedCallController {
   }
 
   Future init() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
     callStartTime = DateTime.now();
 
-    // 1. Renderers Initialize Karein
-    await localRenderer.initialize();
-    await remoteRenderer.initialize();
-
-    // 2. Runtime Permissions Request Karein (Mic & Camera)
-    bool granted = await _requestPermissions();
-    if (!granted) {
-      debugPrint("Microphone or Camera permission denied!");
+    if (callType == 'video') {
+      await localRenderer.initialize();
+      await remoteRenderer.initialize();
     }
 
-    // 3. Socket & WebRTC Setup
-    _initSocketAndWebRTC();
+    bool granted = await _requestPermissions();
+    if (!granted) {
+      debugPrint("❌ Microphone or Camera permission denied!");
+    }
 
+    _initSocketAndWebRTC();
     _startCallTimer();
     _listenToRoomUpdates();
     _initNotificationsAndShowOngoing();
   }
 
-  // 🟢 Runtime Permissions Handler
-  Future _requestPermissions() async {
-    Map statuses = await [Permission.microphone, Permission.camera].request();
+  Future<bool> _requestPermissions() async {
+    try {
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.microphone,
+        if (callType == 'video') Permission.camera,
+      ].request();
 
-    bool micGranted =
-        statuses[Permission.microphone] == PermissionStatus.granted;
-    bool camGranted = statuses[Permission.camera] == PermissionStatus.granted;
+      bool micGranted =
+          statuses[Permission.microphone] == PermissionStatus.granted;
+      bool camGranted = callType == 'video'
+          ? statuses[Permission.camera] == PermissionStatus.granted
+          : true;
 
-    return micGranted && camGranted;
+      return micGranted && camGranted;
+    } catch (e) {
+      debugPrint("⚠️ Permission request error: $e");
+      return true;
+    }
   }
 
-  // 🟢 Socket & WebRTC Initialization
   void _initSocketAndWebRTC() {
     final String currentUserId = isUserCaller
         ? CallApiService.staticUserId
         : agentId;
 
-    // Socket Connection Setup
     _socket = IO.io(AppConfig.rootBaseUrl, {
       'transports': ['websocket'],
       'autoConnect': true,
     });
 
     _socket!.onConnect((_) {
-      debugPrint("Socket Connected: ${_socket!.id}");
-      // Register user with socket
+      debugPrint("🔌 Socket Connected: ${_socket!.id}");
       _socket!.emit('register', {'userId': currentUserId});
-      // Join Room
-      _socket!.emit('join-room', {
-        'roomId': roomId,
-        'callType': (maxCallDurationSeconds != null && isCameraOff)
-            ? 'voice'
-            : 'video', // ya jo callType ho
-      });
+      _socket!.emit('join-room', {'roomId': roomId, 'callType': callType});
     });
 
-    // Socket Listeners for WebRTC Signaling (matchs callSocket.js)
     _socket!.on('room-joined', (data) async {
-      debugPrint("Joined room successfully: $data");
+      debugPrint("🏠 Joined room successfully: $data");
       await _startLocalStreamAndPeerConnection();
-
-      // Agar caller hai toh WebRTC Offer banakar bhejein
-      if (isUserCaller) {
-        await _createAndSendOffer();
-      }
-    });
-
-    _socket!.on('user-joined', (data) async {
-      debugPrint("Another user joined room: $data");
-      if (isUserCaller) {
+      // Sirf caller ek baar offer banaye
+      if (isUserCaller && _peerConnection != null) {
         await _createAndSendOffer();
       }
     });
@@ -185,18 +185,27 @@ class SharedCallController {
           data['candidate']['sdpMid'],
           data['candidate']['sdpMLineIndex'],
         );
-        await _peerConnection?.addCandidate(candidate);
+        if (_isRemoteDescriptionSet && _peerConnection != null) {
+          await _peerConnection!.addCandidate(candidate);
+        } else {
+          _iceCandidatesQueue.add(candidate);
+        }
       }
+    });
+
+    // Agar dusra user disconnect ya leave hota hai toh call automatically handle ho
+    _socket!.on('user-left', (data) async {
+      debugPrint("👤 User left room: $data");
+      safeExit();
     });
   }
 
-  // 🟢 Start Local Stream & WebRTC Peer Connection
-  // SharedCallController.dart mein _startLocalStreamAndPeerConnection method ko aise update karein:
-
   Future _startLocalStreamAndPeerConnection() async {
+    if (_peerConnection != null) return;
+
     final Map<String, dynamic> mediaConstraints = {
       'audio': true,
-      'video': isCameraOff
+      'video': (callType == 'voice' || isCameraOff)
           ? false
           : {
               'width': {'ideal': 640},
@@ -206,13 +215,26 @@ class SharedCallController {
     };
 
     try {
-      // 🟢 Web ke liye navigator.mediaDevices.getUserMedia call karna
       _localStream = await navigator.mediaDevices.getUserMedia(
         mediaConstraints,
       );
-      localRenderer.srcObject = _localStream;
 
-      // Web par render update ensure karne ke liye setState trigger ho
+      // 🟢 Local Stream Logs
+      debugPrint("🟢 [LOCAL STREAM]getUserMedia सफल रहा।");
+      debugPrint(
+        "🟢 [LOCAL STREAM] Audio Tracks की संख्या: ${_localStream?.getAudioTracks().length}",
+      );
+      debugPrint(
+        "🟢 [LOCAL STREAM] Video Tracks की संख्या: ${_localStream?.getVideoTracks().length}",
+      );
+
+      if (callType == 'video' && _localStream != null) {
+        localRenderer.srcObject = _localStream;
+        debugPrint(
+          "🟢 [LOCAL RENDERER] Local video stream successfully assigned to localRenderer!",
+        );
+      }
+
       onStateUpdated();
 
       final Map<String, dynamic> configuration = {
@@ -224,52 +246,116 @@ class SharedCallController {
 
       _peerConnection = await createPeerConnection(configuration);
 
+      _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
+        debugPrint("🔗 [WebRTC CONNECTION STATE]: $state");
+      };
+
+      _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
+        debugPrint("❄️ [ICE CONNECTION STATE]: $state");
+      };
+
       _localStream!.getTracks().forEach((track) {
         _peerConnection!.addTrack(track, _localStream!);
+        debugPrint(
+          "📤 [PEER CONNECTION] Added local track to peer connection: ${track.kind} (Enabled: ${track.enabled})",
+        );
       });
 
-      _peerConnection!.onTrack = (event) {
+      // 🟢 4. रिमोट ट्रैक हैंडलर (यहाँ सबसे महत्वपूर्ण लॉग्स हैं)
+      _peerConnection!.onTrack = (RTCTrackEvent event) {
+        debugPrint("📥 [REMOTE TRACK EVENT FIRED!] ------------------");
+        debugPrint(
+          "📥 Track Kind: ${event.track.kind} | Track ID: ${event.track.id} | Enabled: ${event.track.enabled}",
+        );
+        debugPrint("📥 Streams attached in event: ${event.streams.length}");
+
         if (event.streams.isNotEmpty) {
           remoteStream = event.streams[0];
-          remoteRenderer.srcObject = remoteStream;
-          onStateUpdated(); // 🟢 UI refresh taaki remote video turant dikhe
+
+          debugPrint(
+            "📥 [REMOTE STREAM RECEIVED] Stream ID: ${remoteStream?.id}",
+          );
+          debugPrint(
+            "📥 Remote Audio Tracks count: ${remoteStream?.getAudioTracks().length}",
+          );
+          debugPrint(
+            "📥 Remote Video Tracks count: ${remoteStream?.getVideoTracks().length}",
+          );
+
+          if (callType == 'video') {
+            remoteRenderer.srcObject = remoteStream;
+            debugPrint(
+              "✅ [REMOTE RENDERER] Remote video stream successfully bound to remoteRenderer!",
+            );
+          } else {
+            debugPrint(
+              "✅ [REMOTE AUDIO] Remote audio stream active for voice call.",
+            );
+          }
+          onStateUpdated();
+        } else {
+          debugPrint(
+            "⚠️ [WARNING] onTrack event received but event.streams is EMPTY!",
+          );
         }
       };
 
       _peerConnection!.onIceCandidate = (candidate) {
+        debugPrint(
+          "🧊 [ICE CANDIDATE GENERATED] Sending candidate to socket...",
+        );
         _socket?.emit('webrtc-ice-candidate', {
           'roomId': roomId,
           'candidate': candidate.toMap(),
         });
       };
     } catch (e) {
-      debugPrint("Error starting local stream on Web: $e");
+      debugPrint("❌ [ERROR] Error in _startLocalStreamAndPeerConnection: $e");
     }
   }
 
   Future _createAndSendOffer() async {
+    if (_isCreatingOffer || _peerConnection == null) return;
+    _isCreatingOffer = true;
+
     try {
       RTCSessionDescription offer = await _peerConnection!.createOffer({
         'offerToReceiveAudio': true,
-        'offerToReceiveVideo': true,
+        'offerToReceiveVideo': callType == 'video',
       });
+
       await _peerConnection!.setLocalDescription(offer);
       _socket?.emit('webrtc-offer', {'roomId': roomId, 'offer': offer.toMap()});
+      debugPrint("📤 WebRTC Offer created and sent successfully.");
     } catch (e) {
-      debugPrint("Error creating offer: $e");
+      debugPrint("❌ Error creating offer: $e");
+    } finally {
+      _isCreatingOffer = false;
     }
   }
 
   Future _handleIncomingOffer(Map offerMap) async {
     try {
+      if (_peerConnection == null) {
+        await _startLocalStreamAndPeerConnection();
+      }
+      if (_peerConnection == null) return;
+
       RTCSessionDescription offer = RTCSessionDescription(
         offerMap['sdp'],
         offerMap['type'],
       );
       await _peerConnection!.setRemoteDescription(offer);
+      _isRemoteDescriptionSet = true;
+
+      for (var candidate in _iceCandidatesQueue) {
+        await _peerConnection!.addCandidate(candidate);
+      }
+      _iceCandidatesQueue.clear();
+
       RTCSessionDescription answer = await _peerConnection!.createAnswer({
         'offerToReceiveAudio': true,
-        'offerToReceiveVideo': true,
+        'offerToReceiveVideo': callType == 'video',
       });
       await _peerConnection!.setLocalDescription(answer);
 
@@ -277,25 +363,31 @@ class SharedCallController {
         'roomId': roomId,
         'answer': answer.toMap(),
       });
+      debugPrint("📥 Incoming offer handled & answer sent.");
     } catch (e) {
-      debugPrint("Error handling offer: $e");
+      debugPrint("❌ Error handling offer: $e");
     }
   }
 
   Future _handleIncomingAnswer(Map answerMap) async {
     try {
+      if (_peerConnection == null) return;
       RTCSessionDescription answer = RTCSessionDescription(
         answerMap['sdp'],
         answerMap['type'],
       );
       await _peerConnection!.setRemoteDescription(answer);
+      _isRemoteDescriptionSet = true;
+
+      for (var candidate in _iceCandidatesQueue) {
+        await _peerConnection!.addCandidate(candidate);
+      }
+      _iceCandidatesQueue.clear();
+      debugPrint("📥 Incoming answer handled successfully.");
     } catch (e) {
-      debugPrint("Error handling answer: $e");
+      debugPrint("❌ Error handling answer: $e");
     }
   }
-
-  // 🟢 Toggle Mute Control
-  // views/caling_agent_dashboard/callreceive/SharedCallController.dart
 
   Future toggleMuted() async {
     isMuted = !isMuted;
@@ -308,7 +400,6 @@ class SharedCallController {
     await _showPersistentCallNotification();
 
     try {
-      // 🟢 YAHAN PAR IS CODE KO ATTACH KARNA HAI:
       final updateField = isUserCaller ? 'userMuted' : 'agentMuted';
       await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
         updateField: isMuted,
@@ -318,8 +409,8 @@ class SharedCallController {
     }
   }
 
-  // 🟢 Toggle Camera Control (Video Call Support)
   Future toggleCamera() async {
+    if (callType != 'video') return;
     isCameraOff = !isCameraOff;
     if (_localStream != null) {
       for (var track in _localStream!.getVideoTracks()) {
@@ -340,62 +431,46 @@ class SharedCallController {
 
   Future toggleSpeaker() async {
     isSpeakerOn = !isSpeakerOn;
-    // Helper to toggle speaker mode via WebRTC helper if needed
     Helper.setSpeakerphoneOn(isSpeakerOn);
     onStateUpdated();
     await _showPersistentCallNotification();
   }
 
-  // Notifications setup...
   Future _initNotificationsAndShowOngoing() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+    try {
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const InitializationSettings initializationSettings =
+          InitializationSettings(android: initializationSettingsAndroid);
 
-    await flutterLocalNotificationsPlugin.initialize(
-      settings: initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (response.actionId == 'mute_action')
-          toggleMuted();
-        else if (response.actionId == 'speaker_action')
-          toggleSpeaker();
-        else if (response.actionId == 'end_call_action')
-          hangupCall();
-      },
-    );
-    await _showPersistentCallNotification();
+      await flutterLocalNotificationsPlugin.initialize(
+        settings: initializationSettings,
+      );
+
+      final androidPlugin = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (androidPlugin != null) {
+        await androidPlugin.requestNotificationsPermission();
+      }
+
+      await _showPersistentCallNotification();
+    } catch (e) {
+      debugPrint("⚠️ Notification init warning: $e");
+    }
   }
 
   Future _showPersistentCallNotification() async {
     int notificationId = roomId.hashCode;
     AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
+        const AndroidNotificationDetails(
           'ongoing_call_channel_id',
           'Ongoing Call',
-          channelDescription:
-              'Active call persistent notification with controls',
           importance: Importance.max,
           priority: Priority.high,
           ongoing: true,
           autoCancel: false,
-          actions: [
-            AndroidNotificationAction(
-              'mute_action',
-              isMuted ? 'Unmute' : 'Mute',
-              showsUserInterface: false,
-            ),
-            AndroidNotificationAction(
-              'speaker_action',
-              isSpeakerOn ? 'Earpiece' : 'Speaker',
-              showsUserInterface: false,
-            ),
-            const AndroidNotificationAction(
-              'end_call_action',
-              'End Call',
-              showsUserInterface: false,
-            ),
-          ],
         );
 
     NotificationDetails platformChannelDetails = NotificationDetails(
@@ -473,33 +548,11 @@ class SharedCallController {
           final data = snapshot.data() as Map?;
           if (data == null) return;
 
-          // 🟢 म्यूट और कैमरा स्टेट्स को अपडेट करना
           isAgentMuted = data['agentMuted'] == true;
           isUserMuted = data['userMuted'] == true;
           isRemoteCameraOff = isUserCaller
               ? (data['agentCameraOff'] ?? false)
               : (data['userCameraOff'] ?? false);
-
-          // 🟢 दूसरे यूजर द्वारा भेजे गए इमोजी/रिएक्शन को सुनना और स्क्रीन पर दिखाना
-          final latestReaction = data['latestReaction'] as Map?;
-          if (latestReaction != null) {
-            final reactionKey = latestReaction['key'] as String?;
-            final senderRole = latestReaction['reactionSender'] as String?;
-            final timestamp = latestReaction['timestamp'] as Timestamp?;
-
-            // यह जांच करें कि रिएक्शन किसी दूसरे (Remote) यूजर ने भेजा हो और वह नया हो
-            if (reactionKey != null &&
-                senderRole != (isUserCaller ? 'user' : 'agent')) {
-              if (timestamp != null &&
-                  (lastProcessedReactionTime == null ||
-                      timestamp.compareTo(lastProcessedReactionTime!) > 0)) {
-                lastProcessedReactionTime = timestamp;
-                _triggerLocalReactionAnimation(
-                  reactionKey,
-                ); // दूसरी तरफ से आया इमोजी प्ले होगा
-              }
-            }
-          }
 
           final status = data['status'];
           if (status == 'ended' || status == 'rejected') {
@@ -510,72 +563,25 @@ class SharedCallController {
         });
   }
 
-  Future sendReaction(String iconKey) async {
-    _triggerLocalReactionAnimation(iconKey);
-    try {
-      String senderRole = isUserCaller ? 'user' : 'agent';
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
-        'latestReaction': {
-          'key': iconKey,
-          'reactionSender': senderRole,
-          'timestamp': FieldValue.serverTimestamp(),
-        },
-      });
-    } catch (e) {
-      debugPrint("Error sending reaction: $e");
-    }
-  }
-
-  void _triggerLocalReactionAnimation(String key) {
-    IconData iconData = Icons.favorite;
-    Color iconColor = Colors.redAccent;
-
-    // 🟢 हर इमोजी की के हिसाब से उसका आइकॉन और रंग सेट करें
-    switch (key) {
-      case 'heart':
-        iconData = Icons.favorite;
-        iconColor = Colors.redAccent;
-        break;
-      case 'fire':
-        iconData = Icons.local_fire_department;
-        iconColor = Colors.orangeAccent;
-        break;
-      case 'star':
-        iconData = Icons.star;
-        iconColor = Colors.amber;
-        break;
-      case 'thumb':
-        iconData = Icons.thumb_up;
-        iconColor = Colors.pinkAccent;
-        break;
-      case 'sparkle':
-        iconData = Icons.auto_awesome;
-        iconColor = Colors.purpleAccent;
-        break;
-    }
-
-    double randomStartX = 50.0 + (DateTime.now().millisecondsSinceEpoch % 250);
-    final reactionItem = FloatingReactionIcon(
-      id: DateTime.now().millisecondsSinceEpoch,
-      icon: iconData,
-      color: iconColor,
-      startX: randomStartX,
-    );
-
-    floatingReactions.add(reactionItem);
-    onStateUpdated();
-
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      floatingReactions.removeWhere((item) => item.id == reactionItem.id);
-      onStateUpdated();
-    });
-  }
+  Future sendReaction(String iconKey) async {}
 
   Future hangupCall() async {
     if (isCallEnded || isActionInProgress) return;
     isActionInProgress = true;
     onStateUpdated();
-    await saveCallSessionAndReset(endedBy: isUserCaller ? 'user' : 'agent');
+    try {
+      await CallApiService.endCall(
+        roomId: roomId,
+        agentId: agentId,
+        endedBy: isUserCaller ? 'user' : 'agent',
+        disconnectReason: 'normal_hangup',
+        startTime: callStartTime,
+        endTime: DateTime.now(),
+        durationInSeconds: secondsElapsed,
+      );
+    } catch (e) {
+      debugPrint("Error saving session on hangup: $e");
+    }
     safeExit();
   }
 
@@ -585,6 +591,7 @@ class SharedCallController {
   }) async {
     if (isCallEnded) return;
     isCallEnded = true;
+
     try {
       await CallApiService.endCall(
         roomId: roomId,
@@ -595,52 +602,45 @@ class SharedCallController {
         endTime: DateTime.now(),
         durationInSeconds: secondsElapsed,
       );
+      debugPrint("🧹 Force cleanup executed successfully.");
     } catch (e) {
-      debugPrint("Error in force cleanup: $e");
+      debugPrint("❌ Error in force cleanup: $e");
     }
+
     safeExit();
   }
 
-  Future saveCallSessionAndReset({
-    required String endedBy,
-    String disconnectReason = 'normal_hangup',
-  }) async {
-    if (isCallEnded) return;
-    isCallEnded = true;
-    try {
-      await CallApiService.endCall(
-        roomId: roomId,
-        agentId: agentId,
-        endedBy: endedBy,
-        disconnectReason: disconnectReason,
-        startTime: callStartTime,
-        endTime: DateTime.now(),
-        durationInSeconds: secondsElapsed,
-      );
-    } catch (e) {
-      debugPrint("Error saving session: $e");
-    }
-  }
-
   void safeExit() {
+    if (_isExiting) return;
+    _isExiting = true;
+    isCallEnded = true;
+
     _callTimer?.cancel();
     roomSubscription?.cancel();
     _socket?.disconnect();
 
-    // 🟢 Camera aur Mic ke hardware tracks ko explicitly stop karein taaki light turant band ho jaye
-    if (_localStream != null) {
-      for (var track in _localStream!.getTracks()) {
-        track
-            .stop(); // Yeh browser ko signal deta hai ki camera/mic band karna hai
+    try {
+      if (_localStream != null) {
+        for (var track in _localStream!.getTracks()) {
+          track.stop();
+        }
+        _localStream?.dispose();
+        _localStream = null;
       }
-      _localStream?.dispose();
-      _localStream = null;
-    }
 
-    remoteStream?.dispose();
-    localRenderer.dispose();
-    remoteRenderer.dispose();
-    _peerConnection?.dispose();
+      remoteStream?.dispose();
+      remoteStream = null;
+
+      if (callType == 'video') {
+        localRenderer.dispose();
+        remoteRenderer.dispose();
+      }
+
+      _peerConnection?.dispose();
+      _peerConnection = null;
+    } catch (e) {
+      debugPrint("⚠️ Error during safeExit cleanup: $e");
+    }
 
     flutterLocalNotificationsPlugin.cancel(id: roomId.hashCode);
     onExit();

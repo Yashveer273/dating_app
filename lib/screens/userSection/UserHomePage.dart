@@ -42,6 +42,8 @@ class _UserHomePageState extends State<UserHomePage> {
     if (mounted) setState(() => _walletBalance = balance);
   }
 
+  DateTime? _lastRefreshTime;
+
   static final UserModel? user = AppConfig.user;
   @override
   Widget build(BuildContext context) {
@@ -68,71 +70,93 @@ class _UserHomePageState extends State<UserHomePage> {
 
                 // Main Scrollable Content
                 Expanded(
-                  child: CustomScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    slivers: [
-                      _buildPromoBanner(),
-                      _buildCategoriesList(isDarkMode, primaryText),
+                  child: RefreshIndicator(
+                    color: AppColors.primaryPink,
+                    onRefresh: () async {
+                      final now = DateTime.now();
+                      // यदि पिछले 3 सेकंड के अंदर दोबारा रिफ्रेश करने की कोशिश की गई है
+                      if (_lastRefreshTime != null &&
+                          now.difference(_lastRefreshTime!) <
+                              const Duration(seconds: 3)) {
+                        Get.snackbar(
+                          'Slow down',
+                          'Please wait a moment before refreshing again.',
+                          snackPosition: SnackPosition.BOTTOM,
+                          duration: const Duration(seconds: 2),
+                        );
+                        return;
+                      }
 
-                      // 👉 Experts Header with both Language & Call Type Filters
-                      _buildExpertsHeader(
-                        context,
-                        isDarkMode,
-                        primaryText,
-                        secondaryText,
-                      ),
+                      _lastRefreshTime = now;
+                      await controller.loadHomeDataFromApi();
+                      await _loadWalletBalance();
+                    },
+                    child: CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        _buildPromoBanner(),
+                        _buildCategoriesList(isDarkMode, primaryText),
 
-                      // Filtered Expert List Builder
-                      Obx(() {
-                        final list = controller.filteredAgents;
-                        if (list.isEmpty) {
-                          return SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.all(50.0),
-                              child: Center(
-                                child: Text(
-                                  'No experts available matching this filter.',
-                                  style: TextStyle(
-                                    color: secondaryText,
-                                    fontSize: 13,
+                        // 👉 Experts Header with both Language & Call Type Filters
+                        _buildExpertsHeader(
+                          context,
+                          isDarkMode,
+                          primaryText,
+                          secondaryText,
+                        ),
+
+                        // Filtered Expert List Builder
+                        Obx(() {
+                          final list = controller.filteredAgents;
+                          if (list.isEmpty) {
+                            return SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.all(50.0),
+                                child: Center(
+                                  child: Text(
+                                    'No experts available matching this filter.',
+                                    style: TextStyle(
+                                      color: secondaryText,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        }
-
-                        return SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final AgentModel agent = list[index];
-
-                            return AgentCardWidget(
-                              agent: agent,
-                              isDarkMode: isDarkMode,
-                              primaryText: primaryText,
-                              secondaryText: secondaryText,
-                              onCardTap: () {
-                                controller.setPriorityAgent(agent);
-                              },
-                              onCallTap: () {
-                                showCallSelectionSheet(
-                                  context: context,
-                                  agent: agent,
-                                  isDarkMode: isDarkMode,
-                                  primaryText: primaryText,
-                                  secondaryText: secondaryText,
-                                );
-                              },
                             );
-                          }, childCount: list.length),
-                        );
-                      }),
+                          }
 
-                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                    ],
+                          return SliverList(
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              final AgentModel agent = list[index];
+
+                              return AgentCardWidget(
+                                agent: agent,
+                                isDarkMode: isDarkMode,
+                                primaryText: primaryText,
+                                secondaryText: secondaryText,
+                                onCardTap: () {
+                                  controller.setPriorityAgent(agent);
+                                },
+                                onCallTap: () {
+                                  showCallSelectionSheet(
+                                    context: context,
+                                    agent: agent,
+                                    isDarkMode: isDarkMode,
+                                    primaryText: primaryText,
+                                    secondaryText: secondaryText,
+                                  );
+                                },
+                              );
+                            }, childCount: list.length),
+                          );
+                        }),
+
+                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      ],
+                    ),
                   ),
                 ),
               ],

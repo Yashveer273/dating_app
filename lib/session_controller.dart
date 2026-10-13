@@ -11,16 +11,43 @@ import 'package:talk24loves/screens/userSection/model/user_model.dart';
 class SessionController extends GetxController {
   final Rx<Widget> currentScreen = Rx<Widget>(const LoginScreen());
 
+  final RxString role = UserStorage.role;
+
   void initializeFromStorage() {
     final UserModel? user = UserStorage.getUser();
     final AgentModel? agent = AgentStorage.getAgent();
 
-    if (agent != null && agent.role == 'agent') {
+    role.value = UserStorage.role.value;
+
+    if (role.value == 'agent' && agent != null) {
       currentScreen.value = CallingAgentMainFile();
-    } else if (user != null && user.role == 'user') {
+    } else if (role.value == 'user' && user != null) {
       currentScreen.value = UserMainFile();
     } else {
+      role.value = '';
       currentScreen.value = const LoginScreen();
     }
+  }
+
+  void updateSession(String newRole) {
+    role.value = newRole;
+    UserStorage.role.value = newRole;
+
+    if (newRole == 'agent') {
+      currentScreen.value = CallingAgentMainFile();
+    } else if (newRole == 'user') {
+      currentScreen.value = UserMainFile();
+    } else {
+      role.value = '';
+      UserStorage.role.value = '';
+      currentScreen.value = const LoginScreen();
+    }
+  }
+
+  void logout() {
+    role.value = '';
+    UserStorage.role.value = '';
+
+    currentScreen.value = const LoginScreen();
   }
 }

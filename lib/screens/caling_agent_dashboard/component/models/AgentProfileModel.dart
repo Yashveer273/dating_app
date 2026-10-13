@@ -13,7 +13,8 @@ class AgentProfileModel {
   final String agentId;
   final String location;
   final double rating;
-
+  final bool isAudioAvailable;
+  final bool isVideoAvailable;
   // एक स्टैटिक करंट मॉडल इंस्टेंस ताकि पेज सीधे मॉडल से डेटा ले सके
   static AgentProfileModel? current;
 
@@ -29,6 +30,8 @@ class AgentProfileModel {
     required this.agentId,
     required this.location,
     required this.rating,
+    required this.isAudioAvailable,
+    required this.isVideoAvailable,
   });
 
   factory AgentProfileModel.fromJson(Map json) {
@@ -44,6 +47,8 @@ class AgentProfileModel {
       agentId: json['agentId']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
       rating: json['rating']?.toDouble() ?? 0.0,
+      isAudioAvailable: json['isAudioAvailable'] ?? true,
+      isVideoAvailable: json['isVideoAvailable'] ?? false,
     );
 
     // जैसे ही JSON से बने, इसे current में सेट कर दें

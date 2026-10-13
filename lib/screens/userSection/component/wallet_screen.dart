@@ -106,12 +106,6 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
             ],
           ),
-          IconButton(
-            icon: Icon(Icons.history_rounded, color: primaryText, size: 22),
-            onPressed: () {
-              // TODO: Open transaction history
-            },
-          ),
         ],
       ),
     );
@@ -228,6 +222,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  DateTime? _lastRefreshTime;
   @override
   Widget build(BuildContext context) {
     final cardColor = isDarkMode ? AppColors.darkCard : AppColors.lightCard;
@@ -276,262 +271,295 @@ class _WalletScreenState extends State<WalletScreen> {
 
                 // Main Scrollable Content
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // --- REDESIGNED PROFESSIONAL BALANCE CARD ---
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDarkMode
-                                ? const Color(0xFF1E1E24)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDarkMode
-                                  ? const Color(0xFF2C2C35)
-                                  : const Color(0xFFEAEAEA),
-                              width: 1.0,
+                  child: RefreshIndicator(
+                    color: AppColors.primaryPink,
+                    onRefresh: () async {
+                      final now = DateTime.now();
+
+                      // 👉 यदि पिछले 3 सेकंड के अंदर दोबारा रिफ्रेश करने की कोशिश की गई है
+                      if (_lastRefreshTime != null &&
+                          now.difference(_lastRefreshTime!) <
+                              const Duration(seconds: 3)) {
+                        Get.snackbar(
+                          'Slow Down',
+                          'Please wait a few seconds before refreshing again.',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.black87,
+                          colorText: Colors.white,
+                          duration: const Duration(seconds: 2),
+                          margin: const EdgeInsets.all(16),
+                        );
+                        return; // डेटा फेच नहीं होगा और तुरंत वापस आ जाएगा
+                      }
+
+                      _lastRefreshTime = now;
+
+                      // 👉 टाइम लिमिट पास होने पर वॉलेट बैलेंस रिफ्रेश होगा
+                      await _loadWalletBalance();
+                    },
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // --- REDESIGNED PROFESSIONAL BALANCE CARD ---
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 16,
                             ),
-                            boxShadow: [
-                              BoxShadow(
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? const Color(0xFF1E1E24)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
                                 color: isDarkMode
-                                    ? Colors.black.withOpacity(0.3)
-                                    : Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                    ? const Color(0xFF2C2C35)
+                                    : const Color(0xFFEAEAEA),
+                                width: 1.0,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'TOTAL BALANCE',
-                                    style: TextStyle(
-                                      color: isDarkMode
-                                          ? const Color(0xFF9CA3AF)
-                                          : const Color(0xFF71717A),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.8,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDarkMode
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TOTAL BALANCE',
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? const Color(0xFF9CA3AF)
+                                            : const Color(0xFF71717A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          '₹',
+                                          style: TextStyle(
+                                            color: AppColors.primaryPink,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          _walletBalance?.toStringAsFixed(2) ??
+                                              '--',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? Colors.white
+                                                : const Color(0xFF18181B),
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryPink.withOpacity(
+                                      0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: AppColors.primaryPink.withOpacity(
+                                        0.2,
+                                      ),
+                                      width: 1,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
+                                  child: Row(
                                     children: [
+                                      const Icon(
+                                        Icons.account_balance_wallet_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        '₹',
+                                        'wallet',
                                         style: TextStyle(
                                           color: AppColors.primaryPink,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        _walletBalance?.toStringAsFixed(2) ??
-                                            '--',
-                                        style: TextStyle(
-                                          color: isDarkMode
-                                              ? Colors.white
-                                              : const Color(0xFF18181B),
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.5,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryPink.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: AppColors.primaryPink.withOpacity(
-                                      0.2,
-                                    ),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.account_balance_wallet_rounded,
-                                      color: AppColors.primaryPink,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Active',
-                                      style: TextStyle(
-                                        color: AppColors.primaryPink,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // --- SELECT RECHARGE AMOUNT HEADER ---
-                        Text(
-                          'Select Recharge Amount',
-                          style: TextStyle(
-                            color: primaryText,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // --- CUSTOM AMOUNT INPUT BOX ---
-                        TextField(
-                          controller: _customAmountController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          style: TextStyle(color: primaryText, fontSize: 13),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedIndex = null;
-                              customAmountValue = double.tryParse(value) ?? 0.0;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Or enter custom amount (e.g. 150)',
-                            hintStyle: TextStyle(
-                              color: secondaryText,
-                              fontSize: 12,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.currency_rupee_rounded,
-                              color: AppColors.primaryPink,
-                              size: 18,
-                            ),
-                            filled: true,
-                            fillColor: cardColor,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: borderColor),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: borderColor),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppColors.primaryPink,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // --- RECHARGE PACKS COLUMN/ROW SYSTEM (NO GRIDVIEW) ---
-                        ...packRows,
-
-                        const SizedBox(height: 12),
-
-                        // --- COMPACT CENTERED ACTION BUTTON WITH BORDER ---
-                        Center(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: borderColor,
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primaryPink.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
-                            child: SizedBox(
-                              height: 42,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryPink,
-                                  foregroundColor: Colors.white,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(22),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                  ),
-                                  elevation: 0,
-                                ),
-                                onPressed: activePack.amount <= 0
-                                    ? null
-                                    : () {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          backgroundColor: Colors.transparent,
-                                          builder: (context) =>
-                                              AddBalanceSummaryPopup(
-                                                selectedPack: activePack,
-                                              ),
-                                        );
-                                      },
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Top-Up ₹${activePack.amount.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // --- SELECT RECHARGE AMOUNT HEADER ---
+                          Text(
+                            'Select Recharge Amount',
+                            style: TextStyle(
+                              color: primaryText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // --- CUSTOM AMOUNT INPUT BOX ---
+                          TextField(
+                            controller: _customAmountController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            style: TextStyle(color: primaryText, fontSize: 13),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedIndex = null;
+                                customAmountValue =
+                                    double.tryParse(value) ?? 0.0;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Or enter custom amount (e.g. 150)',
+                              hintStyle: TextStyle(
+                                color: secondaryText,
+                                fontSize: 12,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.currency_rupee_rounded,
+                                color: AppColors.primaryPink,
+                                size: 18,
+                              ),
+                              filled: true,
+                              fillColor: cardColor,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: borderColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: borderColor),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primaryPink,
+                                  width: 2,
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 14),
+
+                          // --- RECHARGE PACKS COLUMN/ROW SYSTEM (NO GRIDVIEW) ---
+                          ...packRows,
+
+                          const SizedBox(height: 12),
+
+                          // --- COMPACT CENTERED ACTION BUTTON WITH BORDER ---
+                          Center(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: borderColor,
+                                  width: 1.2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primaryPink.withOpacity(
+                                      0.3,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: SizedBox(
+                                height: 42,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryPink,
+                                    foregroundColor: Colors.white,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(22),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: activePack.amount <= 0
+                                      ? null
+                                      : () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: Colors.transparent,
+                                            builder: (context) =>
+                                                AddBalanceSummaryPopup(
+                                                  selectedPack: activePack,
+                                                ),
+                                          );
+                                        },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Top-Up ₹${activePack.amount.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

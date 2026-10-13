@@ -235,7 +235,12 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
 
                           return GestureDetector(
                             onTap: () async {
-                              await Get.to(() => AgentProfilePage());
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AgentProfilePage(),
+                                ),
+                              );
                               setState(
                                 () {},
                               ); // Refresh UI when coming back from profile page

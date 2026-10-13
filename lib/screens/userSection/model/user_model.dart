@@ -4,7 +4,7 @@ class UserModel {
   final bool phoneVerified;
   final String? name;
   final String? avatar;
-  final num walletBalance;
+  num walletBalance;
   final int audioCallTimeMinutes;
   final int videoCallTimeMinutes;
   final String status;

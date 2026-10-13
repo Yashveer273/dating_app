@@ -67,7 +67,7 @@ class EarningsDashboardPage extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Payout Requests & Status',
+                              'Payout Requests',
                               style: TextStyle(
                                 color: textColor,
                                 fontSize: 17,

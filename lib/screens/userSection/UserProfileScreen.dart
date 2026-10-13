@@ -4,6 +4,7 @@ import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentProfilePage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
 import 'package:talk24loves/screens/phone_login_screen.dart';
 import 'package:talk24loves/screens/userSection/model/user_model.dart';
@@ -117,12 +118,17 @@ class _UserProfileScreenState extends State {
     try {
       await UserStorage.clearUser();
 
+      final sessionController = Get.find<SessionController>();
+      sessionController.logout();
+
       if (!mounted) return;
-      Get.until((route) => route.isFirst);
-      Get.find<SessionController>().currentScreen.value = const LoginScreen();
+
+      Get.offAll(() => const LoginScreen());
     } catch (error) {
       if (!mounted) return;
+
       setState(() => _isLoggingOut = false);
+
       Get.snackbar(
         'Logout failed',
         'Unable to clear your session. Please try again.',
@@ -169,48 +175,35 @@ class _UserProfileScreenState extends State {
           iconTheme: IconThemeData(color: primaryText),
           elevation: 0,
           actions: [
-            SizedBox(
-              width: 100,
-              child: OutlinedButton.icon(
-                onPressed: _isLoggingOut ? null : _handleLogout,
-                icon: _isLoggingOut
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
+            const SizedBox(width: 8),
 
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.logout_rounded),
-                label: Text(
-                  _isLoggingOut ? 'Logging out...' : 'Log out',
-                  style: TextStyle(color: AppColors.lightBgMid),
-                ),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: AppColors.pinkDeep,
-                  iconColor: AppColors.lightBgMid,
-                  side: const BorderSide(color: AppColors.pinkDark),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
+            HeaderButton(
+              icon: isDarkMode ? Icons.refresh : Icons.refresh,
+              color: AppColors.primaryPink,
+              background: isDarkMode ? AppColors.darkCard : AppColors.lightCard,
+              borderColor: borderColor,
+              onTap: () => _loadUserProfile,
+            ),
+            const SizedBox(width: 8),
+            HeaderButton(
+              icon: isDarkMode
+                  ? Icons.dark_mode_rounded
+                  : Icons.light_mode_rounded,
+              color: AppColors.primaryPink,
+              background: isDarkMode ? AppColors.darkCard : AppColors.lightCard,
+              borderColor: borderColor,
+              onTap: () => themeController.toggleTheme(),
+            ),
+            const SizedBox(width: 8),
+            HeaderButton(
+              icon: Icons.logout_rounded,
+              color: const Color(0xFFC62828),
+              background: const Color(0xFFC62828).withOpacity(0.1),
+              borderColor: const Color(0xFFC62828).withOpacity(0.25),
+              onTap: _isLoggingOut ? () {} : _handleLogout,
             ),
 
-            IconButton(
-              tooltip: isDarkMode
-                  ? 'Switch to light mode'
-                  : 'Switch to dark mode',
-              onPressed: themeController.toggleTheme,
-              icon: Icon(
-                isDarkMode
-                    ? Icons.light_mode_outlined
-                    : Icons.dark_mode_outlined,
-                size: 20,
-              ),
-            ),
             const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 20),
-              onPressed: _loadUserProfile,
-            ),
           ],
         ),
         body: AppBackground(
@@ -548,17 +541,10 @@ class _UserProfileScreenState extends State {
                               secondaryText: secondaryText,
                               borderColor: borderColor,
                             ),
-                            _buildProfessionalDetailRow(
-                              "Phone Verified",
-                              user!.phoneVerified ? "Verified" : "Pending",
-                              Icons.phone_android_outlined,
-                              primaryText: primaryText,
-                              secondaryText: secondaryText,
-                              borderColor: borderColor,
-                            ),
+
                             _buildProfessionalDetailRow(
                               "Profile Completed",
-                              user!.profileCompleted ? "Yes" : "No",
+                              user!.name!.isNotEmpty ? "Yes" : "No",
                               Icons.assignment_turned_in_outlined,
                               primaryText: primaryText,
                               secondaryText: secondaryText,

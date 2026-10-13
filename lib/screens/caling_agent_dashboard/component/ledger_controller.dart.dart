@@ -155,7 +155,8 @@ class LedgerController extends GetxController {
     selectedFilterDate.value = null;
   }
 
-  double get pendingIncome => agentFinancials!.walletBalance;
+  double get pendingIncome =>
+      agentFinancials != null ? agentFinancials!.walletBalance : 0;
   bool get canWithdraw => pendingIncome >= minimumWithdrawalLimit;
   void saveBankDetails({
     required String accountNumber,

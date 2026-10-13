@@ -41,6 +41,9 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   List<String> _currentTopics = [];
   List<String> _availableCategories = [];
   List<String> _selectedCategories = [];
+  bool _isAudioAvailable = true;
+  bool _isVideoAvailable = false;
+  bool _isSavingCallTypes = false;
 
   @override
   void initState() {
@@ -71,6 +74,15 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       } else {
         _initProfileData();
       }
+      // 🚀 GET API Call: Agent ki call types fetch karne ke liye
+      final callTypesRes = await _userApiService.getAgentCallTypes();
+      if (callTypesRes['success'] == true && callTypesRes['data'] != null) {
+        final callData = callTypesRes['data'];
+        setState(() {
+          _isAudioAvailable = callData['isAudioAvailable'] ?? true;
+          _isVideoAvailable = callData['isVideoAvailable'] ?? false;
+        });
+      }
       await _loadCategoryOptions();
     } catch (e) {
       print("Error loading profile from API: $e");
@@ -80,6 +92,55 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       if (mounted) {
         setState(() => _isFetchingProfile = false);
       }
+    }
+  }
+
+  Future<void> _handleUpdateCallTypes(bool newAudio, bool newVideo) async {
+    // Front-end Validation: At least one must be true
+    if (!newAudio && !newVideo) {
+      Get.snackbar(
+        'Validation Error',
+        'At least one call type (Audio or Video) must remain enabled.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+      return;
+    }
+
+    setState(() => _isSavingCallTypes = true);
+
+    // 🚀 PUT API Call: Agent ki call types update karne ke liye
+    final response = await _userApiService.updateAgentCallTypes(
+      isAudioAvailable: newAudio,
+      isVideoAvailable: newVideo,
+    );
+
+    setState(() => _isSavingCallTypes = false);
+
+    if (response['success'] == true) {
+      setState(() {
+        _isAudioAvailable = newAudio;
+        _isVideoAvailable = newVideo;
+      });
+      Get.snackbar(
+        'Success',
+        'Call availability updated successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+    } else {
+      Get.snackbar(
+        'Error',
+        response['message'] ?? 'Failed to update call availability',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
     }
   }
 
@@ -207,12 +268,17 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       AgentFinancialModel.current = null;
       AgentJobOnOffModel.current = null;
 
+      final sessionController = Get.find<SessionController>();
+      sessionController.logout();
+
       if (!mounted) return;
-      Get.until((route) => route.isFirst);
-      Get.find<SessionController>().currentScreen.value = const LoginScreen();
+
+      Get.offAll(() => const LoginScreen());
     } catch (error) {
       if (!mounted) return;
+
       setState(() => _isLoggingOut = false);
+
       Get.snackbar(
         'Logout failed',
         'Unable to clear your session. Please try again.',
@@ -237,11 +303,13 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       final res = await _userApiService.updateAgentProfileName(
         displayName: newName,
       );
+
       if (res['success'] != true && res['statusCode'] != 200) hasError = true;
     }
     final categoryResponse = await _userApiService.updateAgentCategory(
       category: newCategory,
     );
+
     if (categoryResponse['success'] != true &&
         categoryResponse['statusCode'] != 200) {
       hasError = true;
@@ -250,6 +318,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       final res = await _userApiService.updateAgentTopics(
         topics: _currentTopics,
       );
+
       if (res['success'] != true && res['statusCode'] != 200) hasError = true;
     }
 
@@ -364,7 +433,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                           child: Row(
                             children: [
-                              _HeaderButton(
+                              HeaderButton(
                                 icon: Icons.arrow_back_ios_new_rounded,
                                 color: primaryText,
                                 background: cardBg,
@@ -386,18 +455,10 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      'Manage your professional details',
-                                      style: TextStyle(
-                                        color: secondaryText,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ),
-                              _HeaderButton(
+                              HeaderButton(
                                 icon: _isEditing
                                     ? Icons.close_rounded
                                     : Icons.edit_rounded,
@@ -413,7 +474,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                 },
                               ),
                               const SizedBox(width: 8),
-                              _HeaderButton(
+                              HeaderButton(
                                 icon: isDarkMode
                                     ? Icons.dark_mode_rounded
                                     : Icons.light_mode_rounded,
@@ -423,7 +484,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                 onTap: () => themeController.toggleTheme(),
                               ),
                               const SizedBox(width: 8),
-                              _HeaderButton(
+                              HeaderButton(
                                 icon: Icons.logout_rounded,
                                 color: const Color(0xFFC62828),
                                 background: const Color(
@@ -558,9 +619,10 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                             ],
                                           ),
                                           const SizedBox(height: 6),
-                                          _buildRatingStars(
-                                            agentFinancials!.rating,
-                                          ),
+                                          if (agentFinancials != null)
+                                            _buildRatingStars(
+                                              agentFinancials!.rating,
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -1119,7 +1181,251 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                             ),
                           ),
                         ),
+                      // ==========================================
+                      // AVAILABLE SERVICES (AUDIO & VIDEO CALL) UI
+                      // ==========================================
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: borderColor.withOpacity(0.7),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.perm_phone_msg_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Available Call Services',
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _isEditing
+                                      ? 'Select your service modes. At least one call type must remain active.'
+                                      : 'Services you are currently offering to users.',
+                                  style: TextStyle(
+                                    color: secondaryText,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
 
+                                // Loader jab API save ho rahi ho
+                                if (_isSavingCallTypes)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(12.0),
+                                      child: SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.primaryPink,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                // 1. EDIT MODE: Switches dikhenge jisse user add/remove kar sake
+                                else if (_isEditing)
+                                  Column(
+                                    children: [
+                                      SwitchListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        title: Text(
+                                          'Audio Call Service',
+                                          style: TextStyle(
+                                            color: primaryText,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          _isAudioAvailable
+                                              ? 'Active for audio sessions'
+                                              : 'Disabled',
+                                          style: TextStyle(
+                                            color: secondaryText,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        secondary: Icon(
+                                          Icons.call_rounded,
+                                          color: _isAudioAvailable
+                                              ? AppColors.primaryPink
+                                              : secondaryText,
+                                          size: 20,
+                                        ),
+                                        value: _isAudioAvailable,
+                                        activeColor: AppColors.primaryPink,
+                                        onChanged: (val) {
+                                          _handleUpdateCallTypes(
+                                            val,
+                                            _isVideoAvailable,
+                                          );
+                                        },
+                                      ),
+                                      const Divider(height: 1, thickness: 0.5),
+                                      SwitchListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        title: Text(
+                                          'Video Call Service',
+                                          style: TextStyle(
+                                            color: primaryText,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          _isVideoAvailable
+                                              ? 'Active for video sessions'
+                                              : 'Disabled',
+                                          style: TextStyle(
+                                            color: secondaryText,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        secondary: Icon(
+                                          Icons.videocam_rounded,
+                                          color: _isVideoAvailable
+                                              ? AppColors.primaryPink
+                                              : secondaryText,
+                                          size: 20,
+                                        ),
+                                        value: _isVideoAvailable,
+                                        activeColor: AppColors.primaryPink,
+                                        onChanged: (val) {
+                                          _handleUpdateCallTypes(
+                                            _isAudioAvailable,
+                                            val,
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  )
+                                // 2. VIEW MODE: Professional Badges/Chips dikhenge jo active hain
+                                else
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      if (_isAudioAvailable)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 7,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryPink
+                                                .withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: AppColors.primaryPink
+                                                  .withOpacity(0.2),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                Icons.call_rounded,
+                                                size: 14,
+                                                color: AppColors.primaryPink,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Audio Call Active',
+                                                style: TextStyle(
+                                                  color: AppColors.primaryPink,
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (_isVideoAvailable)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 7,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryPink
+                                                .withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: AppColors.primaryPink
+                                                  .withOpacity(0.2),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                Icons.videocam_rounded,
+                                                size: 14,
+                                                color: AppColors.primaryPink,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Video Call Active',
+                                                style: TextStyle(
+                                                  color: AppColors.primaryPink,
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (!_isAudioAvailable &&
+                                          !_isVideoAvailable)
+                                        Text(
+                                          'No services enabled',
+                                          style: TextStyle(
+                                            color: secondaryText,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                       SliverToBoxAdapter(
                         child: SizedBox(
                           height: MediaQuery.of(context).padding.bottom + 30,
@@ -1134,14 +1440,14 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   }
 }
 
-class _HeaderButton extends StatelessWidget {
+class HeaderButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final Color background;
   final Color borderColor;
   final VoidCallback onTap;
 
-  const _HeaderButton({
+  const HeaderButton({
     required this.icon,
     required this.color,
     required this.background,

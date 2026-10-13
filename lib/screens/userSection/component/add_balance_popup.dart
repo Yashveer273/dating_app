@@ -40,18 +40,6 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
       expiresAt: DateTime(2026, 10, 20),
       description: 'Welcome bonus',
     ),
-    CouponOffer(
-      code: 'FLASH50',
-      bonusAmount: 50.0,
-      expiresAt: DateTime(2026, 11, 05),
-      description: 'Weekend flash offer',
-    ),
-    CouponOffer(
-      code: 'VIP100',
-      bonusAmount: 100.0,
-      expiresAt: DateTime(2026, 12, 31),
-      description: 'VIP loyalty reward',
-    ),
   ];
 
   CouponOffer? selectedCoupon;

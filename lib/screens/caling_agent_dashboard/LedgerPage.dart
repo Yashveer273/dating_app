@@ -95,7 +95,7 @@ class _LedgerPageState extends State {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Manage your earnings and transfers',
+                              'Manage your earnings.',
                               style: TextStyle(
                                 color: primaryText,
                                 fontSize: 16,

@@ -1,4 +1,4 @@
-package com.datingapp.talk24loves
+package com.talk.apk
 
 import io.flutter.embedding.android.FlutterActivity
 

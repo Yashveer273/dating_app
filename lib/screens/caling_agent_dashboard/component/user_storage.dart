@@ -1,17 +1,20 @@
+import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:talk24loves/screens/userSection/model/user_model.dart';
 
 class UserStorage {
   static final GetStorage _storage = GetStorage();
+  static RxString role = "".obs;
 
   static UserModel? getUser() {
     final userData = _storage.read('userModel');
-    final role = _storage.read('role');
+    final ogrole = _storage.read('role');
+    role.value = ogrole?.toString() ?? "";
     if (userData == null) {
       return null;
     }
 
-    return UserModel.fromJson(Map<String, dynamic>.from(userData), role);
+    return UserModel.fromJson(Map<String, dynamic>.from(userData), role.value);
   }
 
   static Future<void> saveUser(UserModel user) async {
