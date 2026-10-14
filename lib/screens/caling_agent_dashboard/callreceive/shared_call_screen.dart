@@ -190,7 +190,7 @@ class _SharedCallScreenState extends State<SharedCallScreen>
 
     // 🟢 Real-time WebRTC Video View Display
     return ClipRRect(
-      borderRadius: BorderRadius.circular(isRemote ? 16 : 0),
+      borderRadius: BorderRadius.circular(isRemote ? 12 : 0),
       child: RTCVideoView(
         renderer,
         objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
@@ -269,32 +269,7 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                       )
                     : _buildAudioCallUI(),
               ),
-              ..._controller.floatingReactions.map((reaction) {
-                return Positioned(
-                  bottom: 120,
-                  left: reaction.startX,
-                  child: TweenAnimationBuilder(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: const Duration(milliseconds: 2500),
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(0, -value * 350),
-                        child: Opacity(
-                          opacity: (1 - value).clamp(0.0, 1.0).toDouble(),
-                          child: Transform.scale(
-                            scale: 0.8 + (value * 0.6),
-                            child: Icon(
-                              reaction.icon,
-                              size: 36,
-                              color: reaction.color,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              }),
+
               Positioned.fill(
                 child: showLocalAsBig
                     ? _buildVideoPlaceholder(
@@ -364,13 +339,13 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: AppColors.primaryPink,
-                          width: 2,
+                          color: AppColors.genderDarkRadioBorder,
+                          width: 1,
                         ),
-                        borderRadius: BorderRadius.circular(16),
+
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryPink.withOpacity(0.3),
+                            color: AppColors.darkCard.withOpacity(0.3),
                             blurRadius: 8,
                             spreadRadius: 2,
                           ),
@@ -426,9 +401,7 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                     ),
                   ),
                 ),
-              // 🟢 1. अगर सामने वाला (Remote) म्यूट है
-              // 🟢 सिर्फ तब दिखेगा जब सामने वाला (Remote User) म्यूट होगा,
-              // और यह मैसेज बिल्कुल सही पर्सन की स्क्रीन पर जाएगा (Opposite direction में)
+
               if (_controller.isRemoteMuted)
                 Positioned(
                   top: _callType == 'video' ? 195 : 150,
@@ -472,70 +445,6 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                     ),
                   ),
                 ),
-              Positioned(
-                bottom: 110,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children:
-                      [
-                        {
-                          'key': 'heart',
-                          'icon': Icons.favorite,
-                          'color': Colors.redAccent,
-                        },
-                        {
-                          'key': 'fire',
-                          'icon': Icons.local_fire_department,
-                          'color': Colors.orangeAccent,
-                        },
-                        {
-                          'key': 'star',
-                          'icon': Icons.star,
-                          'color': Colors.amber,
-                        },
-                        {
-                          'key': 'thumb',
-                          'icon': Icons.thumb_up,
-                          'color': Colors.pinkAccent,
-                        },
-                        {
-                          'key': 'sparkle',
-                          'icon': Icons.auto_awesome,
-                          'color': Colors.purpleAccent,
-                        },
-                      ].map((item) {
-                        final key = item['key'] as String;
-                        final icon = item['icon'] as IconData;
-                        final color = item['color'] as Color;
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: GestureDetector(
-                            onTap: () => _controller.sendReaction(key),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.darkCard.withOpacity(0.9),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.primaryPink.withOpacity(0.5),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.4),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: Icon(icon, color: color, size: 22),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                ),
-              ),
               Positioned(
                 bottom: 20,
                 left: 0,
@@ -631,6 +540,31 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         FloatingActionButton(
+                          heroTag: 'flip_cam_btn_$_roomId',
+                          backgroundColor: AppColors.darkCard,
+                          onPressed: () => _controller.flipCamera(),
+                          child: const Icon(
+                            Icons.flip_camera_ios,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          "Flip",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 12),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton(
                           heroTag: 'hangup_btn_$_roomId',
                           backgroundColor: AppColors.pinkDark,
                           onPressed: () => _controller.hangupCall(),
@@ -669,66 +603,81 @@ class _SharedCallScreenState extends State<SharedCallScreen>
           end: Alignment.bottomCenter,
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.topRight,
+      child: Stack(
+        children: [
+          // 🟢 यह एक हिडन/अदिश्य RTCVideoView है जो केवल रिमोट ऑडियो को एक्टिवेट और प्ले करने के लिए जरूरी है
+          if (_controller.remoteStream != null)
+            SizedBox.shrink(
+              child: RTCVideoView(
+                _controller.remoteRenderer,
+                mirror: false,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+              ),
+            ),
+
+          // आपका पुराना ऑडियो कॉल यूआई
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColors.pinkGradient,
-                  ),
-                  child: const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.darkCard,
-                    child: Icon(
-                      Icons.favorite,
-                      size: 60,
-                      color: AppColors.primaryPink,
+                Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppColors.pinkGradient,
+                      ),
+                      child: const CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppColors.darkCard,
+                        child: Icon(
+                          Icons.favorite,
+                          size: 60,
+                          color: AppColors.primaryPink,
+                        ),
+                      ),
                     ),
+                    if (_controller.isRemoteMuted)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.mic_off,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _controller.isRemoteMuted
+                      ? (_isUserCaller ? "Agent is muted" : "User is muted")
+                      : "Dating Audio Call",
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (_controller.isRemoteMuted)
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.redAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.mic_off,
-                      size: 20,
-                      color: Colors.white,
-                    ),
+                const SizedBox(height: 10),
+                Text(
+                  _controller.formatTime(_controller.secondsElapsed),
+                  style: const TextStyle(
+                    color: AppColors.pinkLight,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              _controller.isRemoteMuted
-                  ? (_isUserCaller ? "Agent is muted" : "User is muted")
-                  : "Dating Audio Call",
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _controller.formatTime(_controller.secondsElapsed),
-              style: const TextStyle(
-                color: AppColors.pinkLight,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

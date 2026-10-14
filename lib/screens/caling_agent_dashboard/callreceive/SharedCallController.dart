@@ -35,6 +35,7 @@ class SharedCallController
   @override
   IO.Socket? get socket => _socket;
 
+  // 🟢 CallReactionHandler के लिए सही गेटर्स ओवरराइड किए गए हैं ताकि कोई बग न आए
   @override
   String get roomIdRef => roomId;
 
@@ -121,18 +122,29 @@ class SharedCallController
     if (_isInitialized) return;
     _isInitialized = true;
     callStartTime = DateTime.now();
-    _acceptedAt = DateTime.now(); // 🟢 यहाँ इनिशियलाइज कर लें
+    _acceptedAt = DateTime.now();
 
     bool granted = await _requestPermissions();
     if (!granted) {
       debugPrint("❌ Microphone or Camera permission denied!");
+      _isInitialized = false;
       return;
+    }
+
+    if (localStream != null) {
+      for (var track in localStream!.getTracks()) {
+        track.stop();
+      }
+      localStream?.dispose();
+      localStream = null;
     }
 
     await _startLocalStreamAndAudioRouting();
     _initSocketAndWebRTC();
     _startCallTimer();
     _listenToRoomUpdates();
+
+    // 🟢 यहाँ रिएक्शन लिसener को सही से इनिशियलाइज किया गया है
     initReactionListener();
 
     if (!kIsWeb) {
@@ -164,14 +176,13 @@ class SharedCallController
   Future _startLocalStreamAndAudioRouting() async {
     if (localStream != null) return;
 
-    // 🟢 ऑडियो कॉल के लिए बेहतर ऑडियो कॉन्स्टेंट्स ताकि आवाज साफ़ और दोनों तरफ जाए
     final Map<String, dynamic> mediaConstraints = {
       'audio': {
         'echoCancellation': true,
         'noiseSuppression': true,
         'autoGainControl': true,
       },
-      'video': (callType == 'voice' || isCameraOff)
+      'video': (callType == 'voice' || callType == 'audio' || isCameraOff)
           ? false
           : {
               'width': {'ideal': 640},
@@ -183,10 +194,10 @@ class SharedCallController
     try {
       localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
-      // ऑडियो कॉल पर बाय-डिफ़ॉल्ट स्पीकर ऑन या इयरपीस सेट करें
-      if (callType == 'voice') {
+      if (callType == 'audio' || callType == 'voice') {
         Helper.setSpeakerphoneOn(true);
         isSpeakerOn = true;
+        debugPrint("🔊 [AUDIO CALL] Speakerphone forced ON for audio call.");
       }
 
       if (callType == 'video' && localStream != null) {
@@ -264,6 +275,20 @@ class SharedCallController
     });
   }
 
+  Future<void> flipCamera() async {
+    if (callType != 'video' || localStream == null) return;
+    try {
+      // 🟢 Flutter WebRTC का इनबिल्ट मेथड जो कैमरे को फ्लिप (Front/Back) करता है
+      for (var track in localStream!.getVideoTracks()) {
+        await Helper.switchCamera(track);
+      }
+      debugPrint("🔄 [CAMERA] Camera flipped successfully.");
+      onStateUpdated();
+    } catch (e) {
+      debugPrint("❌ Error flipping camera: $e");
+    }
+  }
+
   Future _startPeerConnectionOnly() async {
     if (_peerConnection != null) return;
 
@@ -297,21 +322,41 @@ class SharedCallController
         });
       }
 
+      // 🟢 ऑडियो और वीडियो ट्रैक डीबग लॉग्स के साथ हैंडल किया गया है
       _peerConnection!.onTrack = (RTCTrackEvent event) {
         debugPrint(
-          "📥 [REMOTE TRACK EVENT] Streams count: ${event.streams.length}",
+          "📥 [REMOTE TRACK EVENT] Kind: ${event.track.kind}, Streams count: ${event.streams.length}",
         );
+
+        if (event.track.kind == 'audio') {
+          debugPrint(
+            "🔊 [AUDIO STREAM DEBUG] Audio track received! ID: ${event.track.id}, Enabled: ${event.track.enabled}, Muted: ${event.track.muted}",
+          );
+        }
+
         if (event.streams.isNotEmpty) {
           remoteStream = event.streams[0];
+
+          // 🟢 महत्वपूर्ण सुधार: जैसे वीडियो में होता है, वैसे ही ऑडियो कॉल में भी
+          // remoteRenderer.srcObject में स्ट्रीम सेट करें ताकि ब्राउज़र और डिवाइस ऑडियो प्ले कर सकें।
+          remoteRenderer.srcObject = remoteStream;
+
           if (callType == 'video') {
-            remoteRenderer.srcObject = remoteStream;
-            debugPrint("✅ [REMOTE RENDERER] Remote video bound successfully!");
+            // वीडियो कॉल के लिए पहले से सेट है
+          } else {
+            for (var track in remoteStream!.getAudioTracks()) {
+              track.enabled = true;
+              debugPrint(
+                "🔊 [REMOTE AUDIO] Audio track explicitly enabled and playing. ID: ${track.id}",
+              );
+            }
           }
+
+          // 🟢 लोडर को हटाकर UI को तुरंत अपडेट करें (बिल्कुल वीडियो कॉल की तरह)
           isLoadingRemoteVideo = false;
           onStateUpdated();
         }
       };
-
       _peerConnection!.onIceCandidate = (candidate) {
         _socket?.emit('webrtc-ice-candidate', {
           'roomId': roomId,
@@ -396,7 +441,7 @@ class SharedCallController
   }
 
   Future toggleMuted() async {
-    toggleMutedLogic(); // AudioHandler mixin से
+    toggleMutedLogic();
     onStateUpdated();
 
     try {
@@ -430,7 +475,7 @@ class SharedCallController
   }
 
   Future toggleSpeaker() async {
-    toggleSpeakerLogic(); // AudioHandler mixin से
+    toggleSpeakerLogic();
     onStateUpdated();
   }
 
@@ -479,11 +524,16 @@ class SharedCallController
   }
 
   void _startCallTimer() {
+    _callTimer?.cancel();
     _callTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final acceptedAt = _acceptedAt;
-      secondsElapsed = acceptedAt == null
-          ? secondsElapsed + 1
-          : DateTime.now().difference(acceptedAt).inSeconds.clamp(0, 1 << 31);
+      if (_acceptedAt != null) {
+        secondsElapsed = DateTime.now()
+            .difference(_acceptedAt!)
+            .inSeconds
+            .clamp(0, 1 << 31);
+      } else {
+        secondsElapsed++;
+      }
 
       if (isUserCaller && secondsElapsed > 0 && secondsElapsed % 15 == 0) {
         unawaited(_syncBudgetSnapshot());
@@ -642,15 +692,23 @@ class SharedCallController
         remoteStream = null;
       }
 
+      try {
+        localRenderer.srcObject = null;
+        remoteRenderer.srcObject = null;
+      } catch (_) {}
+
       disposeRenderers();
 
-      _peerConnection?.close();
-      _peerConnection?.dispose();
-      _peerConnection = null;
+      if (_peerConnection != null) {
+        _peerConnection?.close();
+        _peerConnection?.dispose();
+        _peerConnection = null;
+      }
 
       _iceCandidatesQueue.clear();
       _isRemoteDescriptionSet = false;
       _isCreatingOffer = false;
+      _isInitialized = false;
 
       Helper.setSpeakerphoneOn(false);
       debugPrint("✅ Call exited cleanly and all modular states reset.");
