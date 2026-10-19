@@ -84,16 +84,6 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           Row(
             children: [
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios_rounded,
-                  color: primaryText,
-                  size: 20,
-                ),
-                onPressed: () => Navigator.pop(context),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
               const SizedBox(width: 12),
               Text(
                 'My Wallet',
@@ -266,17 +256,12 @@ class _WalletScreenState extends State<WalletScreen> {
           child: SafeArea(
             child: Column(
               children: [
-                // Top Bar
                 _buildTopBar(isDarkMode, primaryText),
-
-                // Main Scrollable Content
                 Expanded(
                   child: RefreshIndicator(
                     color: AppColors.primaryPink,
                     onRefresh: () async {
                       final now = DateTime.now();
-
-                      // 👉 यदि पिछले 3 सेकंड के अंदर दोबारा रिफ्रेश करने की कोशिश की गई है
                       if (_lastRefreshTime != null &&
                           now.difference(_lastRefreshTime!) <
                               const Duration(seconds: 3)) {
@@ -528,9 +513,11 @@ class _WalletScreenState extends State<WalletScreen> {
                                             context: context,
                                             isScrollControlled: true,
                                             backgroundColor: Colors.transparent,
+
                                             builder: (context) =>
                                                 AddBalanceSummaryPopup(
                                                   selectedPack: activePack,
+                                                  action: _loadWalletBalance(),
                                                 ),
                                           );
                                         },

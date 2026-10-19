@@ -279,7 +279,7 @@ class _CallHistoryPageState extends State {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              "₹$_walletBalance",
+                              "₹${_walletBalance!.toStringAsFixed(2)}",
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,

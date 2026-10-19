@@ -97,7 +97,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
       final crore = value / 10000000;
 
       return crore == crore.roundToDouble()
-          ? '₹${crore.toInt()}Cr'
+          ? '₹${crore.toStringAsFixed(2)}Cr'
           : '₹${crore.toStringAsFixed(2)}Cr';
     }
 
@@ -105,7 +105,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
       final lakh = value / 100000;
 
       return lakh == lakh.roundToDouble()
-          ? '₹${lakh.toInt()}L'
+          ? '₹${lakh.toStringAsFixed(2)}L'
           : '₹${lakh.toStringAsFixed(2)}L';
     }
 
@@ -113,7 +113,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
       final thousand = value / 1000;
 
       return thousand == thousand.roundToDouble()
-          ? '₹${thousand.toInt()}K'
+          ? '₹${thousand.toStringAsFixed(2)}K'
           : '₹${thousand.toStringAsFixed(2)}K';
     }
 

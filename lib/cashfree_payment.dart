@@ -20,13 +20,14 @@ class CashfreePayButton extends StatefulWidget {
   final double width;
   final double height;
   final Map<String, dynamic>? couponDetails;
-
+  final Future<void> action;
   const CashfreePayButton({
     super.key,
     required this.payableAmount,
     this.width = double.infinity,
     this.height = 52,
     this.couponDetails,
+    required this.action,
   });
 
   @override
@@ -60,7 +61,6 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
         'amount': widget.payableAmount,
         'customerId': user?.id,
         'customerName': user?.name,
-
         'customerPhone': user?.phoneNumber,
       };
 
@@ -78,13 +78,18 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
         });
       }
 
+      // final response = await http.post(
+      //   Uri.parse('$baseUrl/create-order'),
+      //   headers: {'Content-Type': 'application/json'},
+      //   body: jsonEncode(body),
+      // );
       final response = await http.post(
-        Uri.parse('$baseUrl/create-order'),
+        Uri.parse('$baseUrl/rechargenow'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
 
-      debugPrint('Create Order Response: ${response.body}');
+      print('Create Order Response: ${response.body}');
 
       if (response.statusCode != 200) {
         if (mounted) {
@@ -94,7 +99,15 @@ class _CashfreePayButtonState extends State<CashfreePayButton> {
       }
 
       final data = jsonDecode(response.body);
+      if (data['success']) {
+        setState(() {
+          isLoading = false;
+          Navigator.pop(context);
+        });
+        widget.action;
 
+        return;
+      }
       if (data['success'] != true) {
         if (mounted) {
           setState(() => isLoading = false);

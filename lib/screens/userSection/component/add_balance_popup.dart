@@ -24,8 +24,12 @@ class CouponOffer {
 
 class AddBalanceSummaryPopup extends StatefulWidget {
   final RechargePack selectedPack;
-
-  const AddBalanceSummaryPopup({super.key, required this.selectedPack});
+  final Future<void> action;
+  const AddBalanceSummaryPopup({
+    super.key,
+    required this.selectedPack,
+    required this.action,
+  });
 
   @override
   State createState() => _AddBalanceSummaryPopupState();
@@ -231,6 +235,7 @@ class _AddBalanceSummaryPopupState extends State<AddBalanceSummaryPopup>
 
               CashfreePayButton(
                 payableAmount: totalPayable,
+                action: widget.action,
                 couponDetails: selectedCoupon == null
                     ? null
                     : {

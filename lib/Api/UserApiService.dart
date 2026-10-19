@@ -540,12 +540,13 @@ class UserApiService extends GetConnect {
 
   Future<Map<String, dynamic>> updateAgentProfileName({
     required String displayName,
+    required String updatedBio,
   }) async {
     String userId = AppConfig.agent?.id ?? "";
     try {
       final response = await put(
         '${AppConfig.rootBaseUrl}/api/agents/me/profile/$userId',
-        {'displayName': displayName},
+        {'displayName': displayName, 'updatedBio': updatedBio},
         headers: _agentHeaders(),
       );
 
@@ -636,7 +637,7 @@ class UserApiService extends GetConnect {
       final response = await put(
         '${AppConfig.rootBaseUrl}/api/agents/me/category/$userId',
         {'category': category},
-        headers: {..._agentHeaders(), 'Content-Type': 'application/json'},
+        headers: _agentHeaders(),
       );
 
       if (response.body is Map) {
@@ -899,6 +900,76 @@ class UserApiService extends GetConnect {
       };
     } catch (e) {
       print('Error updating agent call types: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // 🌐 Agent Language aur Location fetch karne ke liye GET API
+  // 🌐 Agent Language aur Location fetch karne ke liye GET API
+  Future<Map<String, dynamic>> getAgentLanguageAndLocation() async {
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      final response = await get(
+        '${AppConfig.rootBaseUrl}/api/agents/language-location/$userId?userId=$userId',
+        headers: _agentHeaders(),
+      );
+      print("Get Language & Location Response: ${response.body}");
+      if (response.body is Map) {
+        final data = Map<String, dynamic>.from(response.body);
+
+        // Agar response data ke andar languages string hai, toh usko comma se split karke List bana lo
+        if (data['data'] != null && data['data']['languages'] != null) {
+          var rawLangs = data['data']['languages'];
+          if (rawLangs is String) {
+            data['data']['languages'] = rawLangs
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toList();
+          }
+        }
+        return data;
+      }
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('Error fetching language and location: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // 🌐 Agent Languages aur Location update karne ke liye PUT API
+  Future<Map<String, dynamic>> updateAgentLanguageAndLocation({
+    required dynamic
+    languages, // Yeh List ya comma-separated String ho sakti hai
+    required String location,
+  }) async {
+    String userId = AppConfig.agent?.id ?? "";
+    try {
+      // Agar languages List hai toh use comma-separated string mein convert kar sakte hain ya as-it-is bhej sakte hain backend ki requirement ke hisab se
+      String languagesString = languages is List
+          ? languages.join(', ')
+          : languages.toString();
+
+      final response = await put(
+        '${AppConfig.rootBaseUrl}/api/agents/language-location/$userId?userId=$userId',
+        {'languages': languagesString, 'location': location},
+        headers: _agentHeaders(),
+      );
+      print("Update Language & Location Response: ${response.body}");
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('Error updating language and location: $e');
       return {'success': false, 'message': e.toString()};
     }
   }

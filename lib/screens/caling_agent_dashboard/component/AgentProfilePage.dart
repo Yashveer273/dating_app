@@ -14,6 +14,7 @@ import 'package:talk24loves/session_controller.dart';
 
 import 'models/AgentFinancialModel.dart';
 import 'models/agent_model.dart';
+import 'agent_profile_widgets.dart';
 
 class AgentProfilePage extends StatefulWidget {
   const AgentProfilePage({super.key});
@@ -26,7 +27,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   final ThemeController themeController = Get.find();
   final UserApiService _userApiService = Get.put(UserApiService());
 
-  final AgentModel? agent = AgentStorage.getAgent();
+  AgentModel? agent = AgentStorage.getAgent();
   final AgentFinancialModel? agentFinancials = AgentFinancialModel.current;
 
   bool _isEditing = false;
@@ -41,10 +42,55 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   List<String> _currentTopics = [];
   List<String> _availableCategories = [];
   List<String> _selectedCategories = [];
+
+  // 🌐 Languages State (List format)
+  List<String> _selectedLanguages = [];
+  final List<String> _availableLanguages = [
+    'Hindi',
+    'English',
+    'Bhojpuri',
+    'Tamil',
+    'Telugu',
+    'Gujarati',
+    'Marathi',
+  ];
+
+  // 📍 Location State
+  String _selectedState = 'Uttar Pradesh';
+  String _selectedCity = 'Aligarh';
+  String _currentLocation = 'India, Uttar Pradesh, Aligarh';
+
+  final Map<String, List<String>> _indiaStatesAndCities = {
+    'Uttar Pradesh': [
+      'Aligarh',
+      'Agra',
+      'Lucknow',
+      'Kanpur',
+      'Varanasi',
+      'Noida',
+      'Ghaziabad',
+      'Meerut',
+    ],
+    'Delhi': [
+      'New Delhi',
+      'North Delhi',
+      'South Delhi',
+      'East Delhi',
+      'West Delhi',
+    ],
+    'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane'],
+    'Bihar': ['Patna', 'Gaya', 'Muzaffarpur', 'Bhagalpur'],
+    'Karnataka': ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi'],
+    'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Salem'],
+    'Telangana': ['Hyderabad', 'Warangal', 'Nizamabad'],
+    'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot'],
+    'Rajasthan': ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota'],
+  };
+
   bool _isAudioAvailable = true;
   bool _isVideoAvailable = false;
   bool _isSavingCallTypes = false;
-
+  String bioText = "";
   @override
   void initState() {
     super.initState();
@@ -52,10 +98,10 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     _bioController = TextEditingController();
     _topicInputController = TextEditingController();
 
-    // Init ke andar API call karke profile data fetch karein[cite: 1]
     _loadProfileFromApi();
   }
 
+  // 🚀 GET API Call & AgentModel Integration
   Future<void> _loadProfileFromApi() async {
     setState(() => _isFetchingProfile = true);
     try {
@@ -74,13 +120,39 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       } else {
         _initProfileData();
       }
-      // 🚀 GET API Call: Agent ki call types fetch karne ke liye
+
+      // Language aur Location API call jisme languages ko list mein convert kiya gaya hai
+      final langLocRes = await _userApiService.getAgentLanguageAndLocation();
+      if (langLocRes['success'] == true && langLocRes['data'] != null) {
+        final data = langLocRes['data'];
+        setState(() {
+          if (data['location'] != null &&
+              data['location'].toString().isNotEmpty) {
+            _currentLocation = data['location'].toString();
+            _parseLocationString(_currentLocation);
+          }
+
+          // Languages handling (List form mein assign karna)
+          var langs = data['languages'];
+          if (langs is List) {
+            _selectedLanguages = langs.map((e) => e.toString().trim()).toList();
+          } else if (langs is String && langs.isNotEmpty) {
+            _selectedLanguages = langs.split(',').map((e) => e.trim()).toList();
+          }
+
+          if (_selectedLanguages.isEmpty) {
+            _selectedLanguages = ['Hindi', 'English'];
+          }
+        });
+      }
+
       final callTypesRes = await _userApiService.getAgentCallTypes();
       if (callTypesRes['success'] == true && callTypesRes['data'] != null) {
         final callData = callTypesRes['data'];
         setState(() {
           _isAudioAvailable = callData['isAudioAvailable'] ?? true;
           _isVideoAvailable = callData['isVideoAvailable'] ?? false;
+          bioText = callData["bio"];
         });
       }
       await _loadCategoryOptions();
@@ -95,8 +167,17 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     }
   }
 
+  void _parseLocationString(String loc) {
+    List<String> parts = loc.split(',').map((e) => e.trim()).toList();
+    if (parts.length >= 3) {
+      _selectedState = parts[1];
+      _selectedCity = parts[2];
+    } else if (parts.length == 2) {
+      _selectedState = parts[1];
+    }
+  }
+
   Future<void> _handleUpdateCallTypes(bool newAudio, bool newVideo) async {
-    // Front-end Validation: At least one must be true
     if (!newAudio && !newVideo) {
       Get.snackbar(
         'Validation Error',
@@ -111,7 +192,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
 
     setState(() => _isSavingCallTypes = true);
 
-    // 🚀 PUT API Call: Agent ki call types update karne ke liye
     final response = await _userApiService.updateAgentCallTypes(
       isAudioAvailable: newAudio,
       isVideoAvailable: newVideo,
@@ -212,10 +292,20 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     final profile = AgentProfileModel.current;
     _nameController.text =
         _firstNonEmpty([profile?.displayName, agent?.displayName]) ?? '';
-    _bioController.text = profile?.bio ?? agent?.bio ?? '';
+    _bioController.text = bioText;
     _selectedCategories = _parseCategories(
       profile?.category ?? agent?.category,
     );
+
+    _currentLocation =
+        profile?.location ?? agent?.location ?? 'India, Uttar Pradesh, Aligarh';
+    _parseLocationString(_currentLocation);
+
+    if (agent?.languages != null && agent!.languages!.isNotEmpty) {
+      _selectedLanguages = List<String>.from(agent!.languages!);
+    } else {
+      _selectedLanguages = ['Hindi', 'English'];
+    }
 
     if (profile?.topics != null) {
       _currentTopics = List<String>.from(profile!.topics);
@@ -291,38 +381,66 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     }
   }
 
+  // 🚀 PUT API Call & AgentModel / AgentStorage Update Integration
   Future<void> _handleSaveProfile() async {
     setState(() => _isLoading = true);
 
     final newName = _nameController.text.trim();
     final newCategory = _selectedCategories.join(', ');
-
+    final finalLocation = "India, $_selectedState, $_selectedCity";
+    final updatedBio = _bioController.text.trim();
     bool hasError = false;
 
     if (newName.isNotEmpty) {
       final res = await _userApiService.updateAgentProfileName(
         displayName: newName,
+        updatedBio: updatedBio,
       );
-
       if (res['success'] != true && res['statusCode'] != 200) hasError = true;
     }
+
     final categoryResponse = await _userApiService.updateAgentCategory(
       category: newCategory,
     );
-
     if (categoryResponse['success'] != true &&
         categoryResponse['statusCode'] != 200) {
       hasError = true;
     }
+
+    try {
+      // Languages ko list/comma separated bhej kar save karna
+      final langLocRes = await _userApiService.updateAgentLanguageAndLocation(
+        languages: _selectedLanguages,
+        location: finalLocation,
+      );
+      if (langLocRes['success'] != true && langLocRes['statusCode'] != 200) {
+        hasError = true;
+      } else {
+        // AgentModel mein update karke AgentStorage mein save karna
+        if (agent != null) {
+          // Note: AgentModel ke constructor ya copyWith ke anusaar update karein
+          // Yahan hum local state update kar rahe hain
+          setState(() {
+            _currentLocation = finalLocation;
+            bioText = updatedBio;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error updating languages/location: $e");
+      hasError = true;
+    }
+
     if (_currentTopics.isNotEmpty) {
       final res = await _userApiService.updateAgentTopics(
         topics: _currentTopics,
       );
-
       if (res['success'] != true && res['statusCode'] != 200) hasError = true;
     }
 
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = false;
+    });
 
     if (!hasError) {
       setState(() => _isEditing = false);
@@ -346,7 +464,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     }
   }
 
-  // Double rating ke adhar par dynamic stars render karne ka method
   Widget _buildRatingStars(double rating) {
     int fullStars = rating.floor();
     bool hasHalfStar = (rating - fullStars) >= 0.5;
@@ -410,9 +527,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
           'No Name';
       final agentId = profile?.agentId ?? agent?.agentId;
       final phoneNumber = profile?.phoneNumber ?? agent?.phoneNumber;
-      final bioText = profile?.bio ?? agent?.bio;
-      _selectedCategories.join(', ');
-      final location = profile?.location ?? agent?.firebaseLocation ?? 'India';
 
       return AppBackground(
         isDarkMode: isDarkMode,
@@ -428,6 +542,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                 : CustomScrollView(
                     physics: const BouncingScrollPhysics(),
                     slivers: [
+                      // Header Navigation
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -442,20 +557,14 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                               ),
                               const SizedBox(width: 14),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Profile',
-                                      style: TextStyle(
-                                        color: primaryText,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: -0.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                  ],
+                                child: Text(
+                                  'Profile',
+                                  style: TextStyle(
+                                    color: primaryText,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.4,
+                                  ),
                                 ),
                               ),
                               HeaderButton(
@@ -500,6 +609,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                         ),
                       ),
 
+                      // Profile Info Header Card
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -512,15 +622,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                               border: Border.all(
                                 color: borderColor.withOpacity(0.7),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(
-                                    isDarkMode ? 0.20 : 0.04,
-                                  ),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,7 +629,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _ProfileAvatar(
+                                    ProfileAvatar(
                                       avatarUrl: avatarUrl,
                                       background: isDarkMode
                                           ? Colors.white.withOpacity(0.06)
@@ -546,8 +647,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                           if (_isEditing)
                                             TextField(
                                               controller: _nameController,
-                                              autofocus:
-                                                  true, // First active field requirement
                                               style: TextStyle(
                                                 color: primaryText,
                                                 fontSize: 18,
@@ -597,8 +696,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                                 ),
                                               ],
                                             ),
-                                          const SizedBox(height: 6),
-
                                           const SizedBox(height: 8),
                                           Row(
                                             children: [
@@ -608,12 +705,16 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                                 color: secondaryText,
                                               ),
                                               const SizedBox(width: 4),
-                                              Text(
-                                                location,
-                                                style: TextStyle(
-                                                  color: secondaryText,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
+                                              Expanded(
+                                                child: Text(
+                                                  _currentLocation,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: secondaryText,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -628,95 +729,389 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
-
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDarkMode
-                                        ? Colors.white.withOpacity(0.03)
-                                        : Colors.black.withOpacity(0.02),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: borderColor.withOpacity(0.5),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.badge_outlined,
-                                        size: 18,
-                                        color: AppColors.primaryPink,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Agent ID',
-                                              style: TextStyle(
-                                                color: secondaryText,
-                                                fontSize: 10.5,
-                                              ),
-                                            ),
-                                            Text(
-                                              agentId ?? 'N/A',
-                                              style: TextStyle(
-                                                color: primaryText,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if ((agentId ?? '').isNotEmpty)
-                                        InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          onTap: () {
-                                            Clipboard.setData(
-                                              ClipboardData(text: agentId!),
-                                            );
-                                            Get.snackbar(
-                                              'Copied',
-                                              'Agent ID copied',
-                                              snackPosition:
-                                                  SnackPosition.BOTTOM,
-                                              duration: const Duration(
-                                                seconds: 1,
-                                              ),
-                                            );
-                                          },
-                                          child: const Padding(
-                                            padding: EdgeInsets.all(6.0),
-                                            child: Icon(
-                                              Icons.copy_rounded,
-                                              size: 16,
-                                              color: AppColors.primaryPink,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
                               ],
                             ),
                           ),
                         ),
                       ),
 
+                      // ==========================================
+                      // 📍 Location Section (India -> State -> City)
+                      // ==========================================
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                          child: _InfoTile(
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: borderColor.withOpacity(0.7),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.map_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Location (India)',
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                if (_isEditing) ...[
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isDarkMode
+                                                ? Colors.black26
+                                                : Colors.grey.shade200,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '🇮🇳 India',
+                                            style: TextStyle(
+                                              color: primaryText,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            showSearchableBottomSheet(
+                                              context: context,
+                                              title: 'Select State',
+                                              items: _indiaStatesAndCities.keys
+                                                  .toList(),
+                                              isDarkMode: isDarkMode,
+                                              onSelected: (val) {
+                                                setState(() {
+                                                  _selectedState = val;
+                                                  _selectedCity =
+                                                      _indiaStatesAndCities[val]!
+                                                          .first;
+                                                });
+                                              },
+                                            );
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isDarkMode
+                                                  ? Colors.black26
+                                                  : Colors.grey.shade100,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: borderColor,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment
+                                                  .spaceBetween, // 👈 spaceBetween used
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    _selectedState,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      color: primaryText,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Icon(
+                                                  Icons.arrow_drop_down,
+                                                  size: 20,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  InkWell(
+                                    onTap: () {
+                                      final cities =
+                                          _indiaStatesAndCities[_selectedState] ??
+                                          ['Aligarh'];
+                                      showSearchableBottomSheet(
+                                        context: context,
+                                        title: 'Select City in $_selectedState',
+                                        items: cities,
+                                        isDarkMode: isDarkMode,
+                                        onSelected: (val) {
+                                          setState(() {
+                                            _selectedCity = val;
+                                          });
+                                        },
+                                      );
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isDarkMode
+                                            ? Colors.black26
+                                            : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: borderColor),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment
+                                            .spaceBetween, // 👈 spaceBetween used
+                                        children: [
+                                          Text(
+                                            _selectedCity,
+                                            style: TextStyle(
+                                              color: primaryText,
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.arrow_drop_down,
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ] else
+                                  Text(
+                                    _currentLocation,
+                                    style: TextStyle(
+                                      color: secondaryText,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ==========================================
+                      // 🌐 Languages Spoken Section
+                      // ==========================================
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: borderColor.withOpacity(0.7),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.language_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Languages Spoken',
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                if (_isEditing) ...[
+                                  InkWell(
+                                    onTap: () {
+                                      showSearchableBottomSheet(
+                                        context: context,
+                                        title: 'Select Language',
+                                        items: _availableLanguages
+                                            .where(
+                                              (lang) => !_selectedLanguages.any(
+                                                (selected) =>
+                                                    selected.toLowerCase() ==
+                                                    lang.toLowerCase(),
+                                              ),
+                                            )
+                                            .toList(),
+                                        isDarkMode: isDarkMode,
+                                        onSelected: (selection) {
+                                          setState(() {
+                                            if (!_selectedLanguages.contains(
+                                              selection,
+                                            )) {
+                                              _selectedLanguages.add(selection);
+                                            }
+                                          });
+                                        },
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isDarkMode
+                                            ? Colors.black26
+                                            : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: borderColor),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment
+                                            .spaceBetween, // 👈 spaceBetween used
+                                        children: [
+                                          Text(
+                                            'Tap to select languages...',
+                                            style: TextStyle(
+                                              color: secondaryText,
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.arrow_drop_down,
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: _selectedLanguages
+                                        .map(
+                                          (lang) => Chip(
+                                            label: Text(
+                                              lang,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            deleteIcon: const Icon(
+                                              Icons.close,
+                                              size: 16,
+                                            ),
+                                            onDeleted: () {
+                                              setState(() {
+                                                _selectedLanguages.remove(lang);
+                                              });
+                                            },
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ] else if (_selectedLanguages.isNotEmpty)
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: _selectedLanguages
+                                        .map(
+                                          (lang) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primaryPink
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: AppColors.primaryPink
+                                                    .withOpacity(0.2),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              lang,
+                                              style: const TextStyle(
+                                                color: AppColors.primaryPink,
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  )
+                                else
+                                  Text(
+                                    'Hindi, English',
+                                    style: TextStyle(
+                                      color: secondaryText,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Phone Number Tile
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: InfoTile(
                             icon: Icons.phone_outlined,
                             title: 'Phone Number',
                             value: phoneNumber ?? 'Not Provided',
@@ -728,6 +1123,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                         ),
                       ),
 
+                      // Categories Section
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -893,6 +1289,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                         ),
                       ),
 
+                      // Bio Section
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -956,7 +1353,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                   )
                                 else
                                   Text(
-                                    bioText ?? 'No bio provided',
+                                    bioText,
                                     style: TextStyle(
                                       color: secondaryText,
                                       fontSize: 13,
@@ -969,179 +1366,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                         ),
                       ),
 
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: borderColor.withOpacity(0.7),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryPink
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(
-                                        Icons.forum_outlined,
-                                        color: AppColors.primaryPink,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Conversation Topics',
-                                      style: TextStyle(
-                                        color: primaryText,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-
-                                if (_isEditing) ...[
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: _currentTopics.map((topic) {
-                                      return Chip(
-                                        label: Text(
-                                          topic,
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                        backgroundColor: AppColors.primaryPink
-                                            .withOpacity(0.1),
-                                        deleteIcon: const Icon(
-                                          Icons.close,
-                                          size: 14,
-                                        ),
-                                        onDeleted: () {
-                                          setState(() {
-                                            _currentTopics.remove(topic);
-                                          });
-                                        },
-                                      );
-                                    }).toList(),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _topicInputController,
-                                          style: TextStyle(
-                                            color: primaryText,
-                                            fontSize: 13,
-                                          ),
-                                          decoration: InputDecoration(
-                                            hintText: "Add topic...",
-                                            isDense: true,
-                                            filled: true,
-                                            fillColor: isDarkMode
-                                                ? Colors.black26
-                                                : Colors.grey.shade100,
-                                            contentPadding:
-                                                const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 10,
-                                                ),
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              borderSide: BorderSide.none,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          final val = _topicInputController.text
-                                              .trim();
-                                          if (val.isNotEmpty &&
-                                              !_currentTopics.contains(val)) {
-                                            setState(() {
-                                              _currentTopics.add(val);
-                                              _topicInputController.clear();
-                                            });
-                                          }
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              AppColors.primaryPink,
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                        ),
-                                        child: const Text('Add'),
-                                      ),
-                                    ],
-                                  ),
-                                ] else ...[
-                                  _currentTopics.isNotEmpty
-                                      ? Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: _currentTopics.map((topic) {
-                                            return Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 6,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primaryPink
-                                                    .withOpacity(0.08),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                                border: Border.all(
-                                                  color: AppColors.primaryPink
-                                                      .withOpacity(0.2),
-                                                ),
-                                              ),
-                                              child: Text(
-                                                topic,
-                                                style: const TextStyle(
-                                                  color: AppColors.primaryPink,
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        )
-                                      : Text(
-                                          'No topics added',
-                                          style: TextStyle(
-                                            color: secondaryText,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
+                      // Save All Changes Button
                       if (_isEditing)
                         SliverToBoxAdapter(
                           child: Padding(
@@ -1181,251 +1406,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                             ),
                           ),
                         ),
-                      // ==========================================
-                      // AVAILABLE SERVICES (AUDIO & VIDEO CALL) UI
-                      // ==========================================
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: borderColor.withOpacity(0.7),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryPink
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(
-                                        Icons.perm_phone_msg_rounded,
-                                        color: AppColors.primaryPink,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Available Call Services',
-                                      style: TextStyle(
-                                        color: primaryText,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _isEditing
-                                      ? 'Select your service modes. At least one call type must remain active.'
-                                      : 'Services you are currently offering to users.',
-                                  style: TextStyle(
-                                    color: secondaryText,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-
-                                // Loader jab API save ho rahi ho
-                                if (_isSavingCallTypes)
-                                  const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(12.0),
-                                      child: SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.primaryPink,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                // 1. EDIT MODE: Switches dikhenge jisse user add/remove kar sake
-                                else if (_isEditing)
-                                  Column(
-                                    children: [
-                                      SwitchListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        title: Text(
-                                          'Audio Call Service',
-                                          style: TextStyle(
-                                            color: primaryText,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          _isAudioAvailable
-                                              ? 'Active for audio sessions'
-                                              : 'Disabled',
-                                          style: TextStyle(
-                                            color: secondaryText,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                        secondary: Icon(
-                                          Icons.call_rounded,
-                                          color: _isAudioAvailable
-                                              ? AppColors.primaryPink
-                                              : secondaryText,
-                                          size: 20,
-                                        ),
-                                        value: _isAudioAvailable,
-                                        activeColor: AppColors.primaryPink,
-                                        onChanged: (val) {
-                                          _handleUpdateCallTypes(
-                                            val,
-                                            _isVideoAvailable,
-                                          );
-                                        },
-                                      ),
-                                      const Divider(height: 1, thickness: 0.5),
-                                      SwitchListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        title: Text(
-                                          'Video Call Service',
-                                          style: TextStyle(
-                                            color: primaryText,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          _isVideoAvailable
-                                              ? 'Active for video sessions'
-                                              : 'Disabled',
-                                          style: TextStyle(
-                                            color: secondaryText,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                        secondary: Icon(
-                                          Icons.videocam_rounded,
-                                          color: _isVideoAvailable
-                                              ? AppColors.primaryPink
-                                              : secondaryText,
-                                          size: 20,
-                                        ),
-                                        value: _isVideoAvailable,
-                                        activeColor: AppColors.primaryPink,
-                                        onChanged: (val) {
-                                          _handleUpdateCallTypes(
-                                            _isAudioAvailable,
-                                            val,
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  )
-                                // 2. VIEW MODE: Professional Badges/Chips dikhenge jo active hain
-                                else
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      if (_isAudioAvailable)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 7,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primaryPink
-                                                .withOpacity(0.08),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            border: Border.all(
-                                              color: AppColors.primaryPink
-                                                  .withOpacity(0.2),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: const [
-                                              Icon(
-                                                Icons.call_rounded,
-                                                size: 14,
-                                                color: AppColors.primaryPink,
-                                              ),
-                                              SizedBox(width: 6),
-                                              Text(
-                                                'Audio Call Active',
-                                                style: TextStyle(
-                                                  color: AppColors.primaryPink,
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      if (_isVideoAvailable)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 7,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primaryPink
-                                                .withOpacity(0.08),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            border: Border.all(
-                                              color: AppColors.primaryPink
-                                                  .withOpacity(0.2),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: const [
-                                              Icon(
-                                                Icons.videocam_rounded,
-                                                size: 14,
-                                                color: AppColors.primaryPink,
-                                              ),
-                                              SizedBox(width: 6),
-                                              Text(
-                                                'Video Call Active',
-                                                style: TextStyle(
-                                                  color: AppColors.primaryPink,
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      if (!_isAudioAvailable &&
-                                          !_isVideoAvailable)
-                                        Text(
-                                          'No services enabled',
-                                          style: TextStyle(
-                                            color: secondaryText,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                       SliverToBoxAdapter(
                         child: SizedBox(
                           height: MediaQuery.of(context).padding.bottom + 30,
@@ -1437,163 +1417,5 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
         ),
       );
     });
-  }
-}
-
-class HeaderButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final Color background;
-  final Color borderColor;
-  final VoidCallback onTap;
-
-  const HeaderButton({
-    required this.icon,
-    required this.color,
-    required this.background,
-    required this.borderColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor.withOpacity(0.7)),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileAvatar extends StatelessWidget {
-  final String? avatarUrl;
-  final Color background;
-  final Color borderColor;
-
-  const _ProfileAvatar({
-    required this.avatarUrl,
-    required this.background,
-    required this.borderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
-
-    return Container(
-      width: 96,
-      height: 96,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: background,
-        border: Border.all(color: borderColor.withOpacity(0.8), width: 1.2),
-      ),
-      child: ClipOval(
-        child: hasAvatar
-            ? Image.network(
-                avatarUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const _AvatarFallback(),
-              )
-            : const _AvatarFallback(),
-      ),
-    );
-  }
-}
-
-class _AvatarFallback extends StatelessWidget {
-  const _AvatarFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.primaryPink.withOpacity(0.08),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.person_outline_rounded,
-        color: AppColors.primaryPink,
-        size: 36,
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color primaryText;
-  final Color secondaryText;
-  final Color background;
-  final Color borderColor;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.primaryText,
-    required this.secondaryText,
-    required this.background,
-    required this.borderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor.withOpacity(0.7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primaryPink.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: AppColors.primaryPink, size: 16),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              color: secondaryText,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: primaryText,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -210,7 +210,7 @@ class _UserHomePageState extends State<UserHomePage> {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      '₹ ${_walletBalance ?? 0.0}',
+                      '₹ ${_walletBalance != null ? _walletBalance!.toStringAsFixed(2) : 0.0}',
                       style: TextStyle(
                         color: AppColors.primaryPink,
                         fontSize: 12.5,

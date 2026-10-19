@@ -4,7 +4,8 @@ import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/component/AgentProfilePage.dart';
+
+import 'package:talk24loves/screens/caling_agent_dashboard/component/agent_profile_widgets.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
 import 'package:talk24loves/screens/phone_login_screen.dart';
 import 'package:talk24loves/screens/userSection/model/user_model.dart';
@@ -410,7 +411,7 @@ class _UserProfileScreenState extends State {
                               child: Text(
                                 user!.name != null && user!.name!.isNotEmpty
                                     ? user!.name!
-                                    : "No Name Provided",
+                                    : "No Name",
                                 textAlign: TextAlign.center,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -544,7 +545,7 @@ class _UserProfileScreenState extends State {
 
                             _buildProfessionalDetailRow(
                               "Profile Completed",
-                              user!.name!.isNotEmpty ? "Yes" : "No",
+                              user!.name != null ? "Yes" : "No",
                               Icons.assignment_turned_in_outlined,
                               primaryText: primaryText,
                               secondaryText: secondaryText,
