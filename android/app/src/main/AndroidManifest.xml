@@ -12,7 +12,7 @@
     <application
         android:label="Talk24"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <service
         android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
         android:exported="false"

@@ -691,6 +691,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                           physics: const BouncingScrollPhysics(),
                           children: [
                             _buildPlaylistCard(
+                              context,
                               cardBg,
                               borderColor,
                               primaryText,
@@ -701,6 +702,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                             ),
                             const SizedBox(width: 14),
                             _buildPlaylistCard(
+                              context,
                               cardBg,
                               borderColor,
                               primaryText,
@@ -711,6 +713,7 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
                             ),
                             const SizedBox(width: 14),
                             _buildPlaylistCard(
+                              context,
                               cardBg,
                               borderColor,
                               primaryText,
@@ -735,6 +738,8 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
   }
 
   Widget _buildPlaylistCard(
+    BuildContext
+    context, // Snackbar/Dialog ke liye context pass karna zaroori hai
     Color cardBg,
     Color borderColor,
     Color primaryText,
@@ -757,67 +762,120 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            child: SizedBox(
-              height: 110,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(imageUrl, fit: BoxFit.cover),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withOpacity(0.1),
-                          Colors.black.withOpacity(0.6),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            // Play Console compliant professional message
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Masterclass content will be available soon in upcoming updates.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                  const Center(
-                    child: Icon(
-                      Icons.play_circle_fill_rounded,
-                      size: 36,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
+                backgroundColor: const Color(0xFF1E1E2C),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                duration: const Duration(seconds: 3),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: primaryText,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(18),
+                ),
+                child: SizedBox(
+                  height: 110,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey[900],
+                          child: const Icon(
+                            Icons.video_library,
+                            color: Colors.white38,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.1),
+                              Colors.black.withOpacity(0.6),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                      const Center(
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          size: 36,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: secondaryText, fontSize: 10.5),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: primaryText,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: secondaryText, fontSize: 10.5),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

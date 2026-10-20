@@ -79,9 +79,10 @@ void main() {
         themeMode: ThemeMode.light,
         theme: ThemeData.light(),
         darkTheme: ThemeData.dark(),
-        home: const Scaffold(
+        home: Scaffold(
           body: AddBalanceSummaryPopup(
-            selectedPack: RechargePack(amount: 100, extraPercent: 10),
+            selectedPack: const RechargePack(amount: 100, extraPercent: 10),
+            action: Future<void>.value(),
           ),
         ),
       ),
