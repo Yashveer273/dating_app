@@ -1,6 +1,9 @@
+// ==========================================
+// SessionController.dart (Updated with Image Cache & Complete Storage Cleanup)
+// ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/AgentMainFile.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/agent_storage.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/agent_model.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/user_storage.dart';
@@ -44,10 +47,20 @@ class SessionController extends GetxController {
     }
   }
 
-  void logout() {
+  Future<void> logout() async {
+    // 1. Reset roles and state variables
     role.value = '';
     UserStorage.role.value = '';
 
+    // 2. Completely wipe local storage (GetStorage) for both User and Agent
+    await UserStorage.clearAllAppData();
+    await AgentStorage.clearAllAppData();
+
+    // 3. 🔥 Clear Flutter Image Cache & Live Images so old profile/avatar images disappear instantly
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+
+    // 4. Redirect to Login Screen
     currentScreen.value = const LoginScreen();
   }
 }

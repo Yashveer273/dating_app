@@ -1,10 +1,13 @@
+// ==========================================
+// CallAgentController.dart (Updated for RTDB & Safe ForEach)
+// ==========================================
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart'; // 🟢 RTDB Import
 import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/Api/call_api_service.dart';
 
-import 'dart:async';
 import 'call_item_models.dart';
 
 class CallAgentController extends GetxController {
@@ -22,9 +25,9 @@ class CallAgentController extends GetxController {
   RxList historyList = [].obs;
   final UserApiService _apiService = Get.put(UserApiService());
 
-  // Firebase Stream Subscriptions
-  StreamSubscription? _callStreamSubscription;
-  StreamSubscription? _roomStatusStreamSubscription;
+  // RTDB Stream Subscriptions
+  StreamSubscription<DatabaseEvent>? _callStreamSubscription;
+  StreamSubscription<DatabaseEvent>? _roomStatusStreamSubscription;
 
   @override
   void onInit() {
@@ -62,9 +65,7 @@ class CallAgentController extends GetxController {
     }
   }
 
-  /// 1️⃣ Firebase से लाइव कॉल्स और रूम स्टेटस सुनना
-  /// 1️⃣ Firebase से लाइव कॉल्स और रूम स्टेटस सुनना
-  /// 1️⃣ Firebase से लाइव कॉल्स और रूम स्टेटस सुनना (Directly from 'rooms' collection)
+  /// 1️⃣ Firebase Realtime Database से लाइव कॉल्स और रूम स्टेटस सुनना (Safe Map Iteration)
   void _startListeningToFirebaseCalls() {
     final String agentId = CallApiService.staticAgentId;
 
@@ -75,103 +76,109 @@ class CallAgentController extends GetxController {
 
     try {
       print(
-        '🎧 Listening for incoming ringing calls in "rooms" for agent: $agentId',
+        '🎧 Listening for incoming ringing calls in RTDB "rooms" for agent: $agentId',
       );
 
-      // 🟢 Fix: Listen directly to 'rooms' collection where call status is 'ringing'
-      _callStreamSubscription = FirebaseFirestore.instance
-          .collection('rooms')
-          .where('participants.agentId', isEqualTo: agentId)
-          .where('status', isEqualTo: 'ringing')
-          .snapshots()
+      final DatabaseReference roomsRef = FirebaseDatabase.instance.ref('rooms');
+
+      // 🟢 1. Ringing calls सुनने के लिए RTDB query
+      _callStreamSubscription = roomsRef
+          .orderByChild('participants/agentId')
+          .equalTo(agentId)
+          .onValue
           .listen(
-            (QuerySnapshot snapshot) {
-              print(
-                '📥 Rooms snapshot received! Total active ringing calls: ${snapshot.docs.length}',
-              );
+            (DatabaseEvent event) {
+              final rawData = event.snapshot.value;
+              if (rawData == null) return;
 
-              for (var docChange in snapshot.docChanges) {
-                final data = docChange.doc.data() as Map?;
-                if (data == null) continue;
+              // 🟢 Type-safe check: RTDB data is returned as a Map
+              if (rawData is Map) {
+                rawData.forEach((key, value) {
+                  final String roomId = key?.toString() ?? '';
+                  if (value is Map) {
+                    final String status = value['status']?.toString() ?? '';
 
-                print(
-                  '🔔 Document Change Type: \({docChange.type}, ID:\){docChange.doc.id}, Data: $data',
-                );
+                    if (status == 'ringing') {
+                      final formattedData = {
+                        'roomId':
+                            value['roomId']?.toString() ??
+                            value['id'] ??
+                            roomId,
+                        'callerName':
+                            value['userName']?.toString() ?? 'Valued Customer',
+                        'avatarUrl': value['avatarUrl']?.toString() ?? '',
+                        'callType': value['callType']?.toString() ?? 'audio',
+                        'createdAt':
+                            value['createdAt'] ??
+                            DateTime.now().millisecondsSinceEpoch,
+                      };
 
-                if (docChange.type == DocumentChangeType.added ||
-                    docChange.type == DocumentChangeType.modified) {
-                  final String status = data['status']?.toString() ?? '';
-
-                  if (status == 'ringing') {
-                    final formattedData = {
-                      'roomId':
-                          data['roomId']?.toString() ??
-                          data['id'] ??
-                          docChange.doc.id,
-                      'callerName':
-                          data['userName']?.toString() ?? 'Valued Customer',
-                      'avatarUrl': data['avatarUrl']?.toString() ?? '',
-                      'callType': data['callType']?.toString() ?? 'audio',
-                      'createdAt':
-                          data['createdAt'] ??
-                          DateTime.now().millisecondsSinceEpoch,
-                    };
-
-                    print(
-                      '✅ New Ringing Call Detected & Formatting Data: $formattedData',
-                    );
-                    handleApiCallReceived(formattedData);
+                      print(
+                        '✅ Active Ringing Call Detected in RTDB: $formattedData',
+                      );
+                      handleApiCallReceived(formattedData);
+                    }
                   }
-                }
+                });
               }
             },
             onError: (error) {
-              print('❌ Firebase rooms listener error: $error');
+              print('❌ RTDB rooms listener error: $error');
             },
           );
 
-      // 2. 🟢 रूम कैंसिलेशन या टाइमआउट (ended / timeout) सुनने के लिए दूसरा लिसनर
-      _roomStatusStreamSubscription = FirebaseFirestore.instance
-          .collection('rooms')
-          .where('participants.agentId', isEqualTo: agentId)
-          .where('status', isEqualTo: 'ended')
-          .snapshots()
+      // 🟢 2. रूम कैंसिलेशन या टाइमआउट (ended / rejected) सुनने के लिए लिसनर
+      _roomStatusStreamSubscription = roomsRef
+          .orderByChild('participants/agentId')
+          .equalTo(agentId)
+          .onValue
           .listen(
-            (snapshot) {
-              for (var docChange in snapshot.docChanges) {
-                final data = docChange.doc.data() as Map?;
-                if (data == null) continue;
+            (DatabaseEvent event) {
+              final rawData = event.snapshot.value;
+              if (rawData == null) return;
 
-                final String roomId = data['id'] ?? docChange.doc.id;
-                final bool wasUnanswered = data['endedBy'] == 'agent_no_answer';
+              // 🟢 Type-safe check for Map iteration
+              if (rawData is Map) {
+                rawData.forEach((key, value) {
+                  final String roomId = key?.toString() ?? '';
+                  if (value is Map) {
+                    final String status = value['status']?.toString() ?? '';
+                    final bool wasUnanswered =
+                        value['endedBy'] == 'agent_no_answer';
 
-                if (incomingQueue.any((call) => call.id == roomId)) {
-                  print('🔔 Room ended on server. Moving to history.');
+                    if (status == 'ended' || status == 'rejected') {
+                      if (incomingQueue.any((call) => call.id == roomId)) {
+                        print(
+                          '🔔 Room ended on RTDB server. Moving to history.',
+                        );
 
-                  _resolveLocalCallToHistory(
-                    roomId,
-                    statusText: wasUnanswered
-                        ? 'Missed Call (No answer)'
-                        : 'Call Ended / Cancelled',
-                    statusColor: wasUnanswered
-                        ? Colors.orangeAccent
-                        : Colors.redAccent,
-                    badgeIcon: wasUnanswered
-                        ? Icons.timer_off_rounded
-                        : Icons.call_end_rounded,
-                    timeDetail: wasUnanswered
-                        ? 'No answer • 90s'
-                        : 'Call ended • Just now',
-                  );
-                }
+                        _resolveLocalCallToHistory(
+                          roomId,
+                          statusText: wasUnanswered
+                              ? 'Missed Call (No answer)'
+                              : 'Call Ended / Cancelled',
+                          statusColor: wasUnanswered
+                              ? Colors.orangeAccent
+                              : Colors.redAccent,
+                          badgeIcon: wasUnanswered
+                              ? Icons.timer_off_rounded
+                              : Icons.call_end_rounded,
+                          timeDetail: wasUnanswered
+                              ? 'No answer • 90s'
+                              : 'Call ended • Just now',
+                        );
+                      }
+                    }
+                  }
+                });
               }
             },
             onError: (error) {
-              print('❌ Firebase room status listener error: $error');
+              print('❌ RTDB room status listener error: $error');
             },
           );
     } catch (e) {
-      print('❌ Error initializing Firebase listener: $e');
+      print('❌ Error initializing RTDB listener: $e');
     }
   }
 
@@ -220,30 +227,12 @@ class CallAgentController extends GetxController {
     incomingCall?.pauseAcceptTimeout();
 
     try {
-      print('📞 Accepting call ID: $callId');
+      print('📞 Accepting call ID in RTDB: $callId');
 
-      final acceptedAt = DateTime.now();
-      final roomRef = FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(callId);
-      final didAccept = await FirebaseFirestore.instance.runTransaction<bool>((
-        transaction,
-      ) async {
-        final roomSnapshot = await transaction.get(roomRef);
-        if (!roomSnapshot.exists ||
-            roomSnapshot.data()?['status'] != 'ringing') {
-          return false;
-        }
+      final roomRef = FirebaseDatabase.instance.ref('rooms/$callId');
+      final snapshot = await roomRef.get();
 
-        transaction.update(roomRef, {
-          'status': 'accepted',
-          'acceptedAt': FieldValue.serverTimestamp(),
-          'startTimeMs': acceptedAt.millisecondsSinceEpoch,
-        });
-        return true;
-      });
-
-      if (!didAccept) {
+      if (!snapshot.exists || snapshot.child('status').value != 'ringing') {
         incomingCall?.cancelAcceptTimeout();
         _resolveLocalCallToHistory(
           callId,
@@ -255,6 +244,13 @@ class CallAgentController extends GetxController {
         return false;
       }
 
+      // 🟢 RTDB Status update to accepted
+      await roomRef.update({
+        'status': 'accepted',
+        'acceptedAt': ServerValue.timestamp,
+        'startTimeMs': ServerValue.timestamp,
+      });
+
       incomingCall?.cancelAcceptTimeout();
 
       final int index = incomingQueue.indexWhere((call) => call.id == callId);
@@ -264,44 +260,37 @@ class CallAgentController extends GetxController {
       return true;
     } catch (e) {
       incomingCall?.resumeAcceptTimeout();
-      print('❌ Error accepting call: $e');
+      print('❌ Error accepting call in RTDB: $e');
       Get.snackbar('Error', 'Could not connect call. Please try again.');
       return false;
     }
   }
 
   Future<void> handleCallTimeout(String callId) async {
-    final roomRef = FirebaseFirestore.instance.collection('rooms').doc(callId);
+    final roomRef = FirebaseDatabase.instance.ref('rooms/$callId');
     try {
-      final didTimeout = await FirebaseFirestore.instance.runTransaction<bool>((
-        transaction,
-      ) async {
-        final roomSnapshot = await transaction.get(roomRef);
-        if (!roomSnapshot.exists ||
-            roomSnapshot.data()?['status'] != 'ringing') {
-          return false;
-        }
+      final snapshot = await roomRef.get();
+      if (!snapshot.exists || snapshot.child('status').value != 'ringing') {
+        return;
+      }
 
-        transaction.update(roomRef, {
-          'status': 'ended',
-          'endedBy': 'agent_no_answer',
-          'disconnectReason': 'agent_timeout',
-          'endedAt': FieldValue.serverTimestamp(),
-        });
-        return true;
+      // 🟢 RTDB Timeout update
+      await roomRef.update({
+        'status': 'ended',
+        'endedBy': 'agent_no_answer',
+        'disconnectReason': 'agent_timeout',
+        'endedAt': ServerValue.timestamp,
       });
 
-      if (didTimeout) {
-        _resolveLocalCallToHistory(
-          callId,
-          statusText: 'Missed Call (No answer)',
-          statusColor: Colors.orangeAccent,
-          badgeIcon: Icons.timer_off_rounded,
-          timeDetail: 'No answer • 90s',
-        );
-      }
+      _resolveLocalCallToHistory(
+        callId,
+        statusText: 'Missed Call (No answer)',
+        statusColor: Colors.orangeAccent,
+        badgeIcon: Icons.timer_off_rounded,
+        timeDetail: 'No answer • 90s',
+      );
     } catch (e) {
-      print('Error ending unanswered call: $e');
+      print('Error ending unanswered call in RTDB: $e');
     }
   }
 
@@ -314,8 +303,7 @@ class CallAgentController extends GetxController {
     try {
       print('🚫 Declining/Ending call ID: $callId');
 
-      // 🟢 Backend endCall API कॉल करें ताकि सर्वर-साइड Missed/Declined CallLog सही से सेव हो सके
-      // 🟢 Fix: Pass parameters as named parameters with colons (:)
+      // Backend endCall API कॉल ताकि सर्वर-साइड Missed/Declined CallLog सही से सेव हो सके
       await CallApiService.endCall(
         roomId: callId,
         agentId: CallApiService.staticAgentId,
@@ -323,9 +311,10 @@ class CallAgentController extends GetxController {
         disconnectReason: 'declined_by_agent',
       );
 
-      await FirebaseFirestore.instance.collection('rooms').doc(callId).update({
+      // 🟢 RTDB Status update to ended
+      await FirebaseDatabase.instance.ref('rooms/$callId').update({
         'status': 'ended',
-        'endedAt': FieldValue.serverTimestamp(),
+        'endedAt': ServerValue.timestamp,
       });
 
       _resolveLocalCallToHistory(
@@ -337,7 +326,7 @@ class CallAgentController extends GetxController {
       );
       return true;
     } catch (e) {
-      print('❌ Error declining call in Firebase: $e');
+      print('❌ Error declining call in RTDB: $e');
       _resolveLocalCallToHistory(
         callId,
         statusText: 'Declined / Cut by Agent',

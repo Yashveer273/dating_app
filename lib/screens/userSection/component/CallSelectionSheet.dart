@@ -1,8 +1,8 @@
 // ==========================================
-// CallSelectionSheet.dart (Updated without 90s timer & with Exit/Background Security)
+// CallSelectionSheet.dart (Updated for Firebase Realtime Database & Type-Safe Casting)
 // ==========================================
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart'; // 🟢 RTDB Import
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -312,7 +312,7 @@ void _showRingingScreen({
 }
 
 // ==========================================
-// Call Ringing Screen (Without 90s Timer & With Exit/Background Security)
+// Call Ringing Screen (Updated with RTDB & Safe Map Casting)
 // ==========================================
 class CallRingingScreen extends StatefulWidget {
   final AgentModel agent;
@@ -331,7 +331,7 @@ class CallRingingScreen extends StatefulWidget {
 class _CallRingingScreenState extends State<CallRingingScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   String? _roomId;
-  StreamSubscription? _roomSubscription;
+  StreamSubscription<DatabaseEvent>? _roomSubscription;
   DateTime? _requestStartedAt;
   bool _isCallInitiated = false;
   bool _isDisconnecting = false;
@@ -363,7 +363,6 @@ class _CallRingingScreenState extends State<CallRingingScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Agar user app ko minimize karta hai ya background mein bhejta hai
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       if (!_isCallAccepted && !_isDisconnecting) {
@@ -424,39 +423,38 @@ class _CallRingingScreenState extends State<CallRingingScreen>
       }
 
       try {
-        await FirebaseFirestore.instance.collection('rooms').doc(_roomId).set({
+        // 🟢 RTDB update syntax
+        await FirebaseDatabase.instance.ref('rooms/$_roomId').update({
           'maxDurationSeconds': maxDurationSeconds,
           'walletBalanceAtCall': walletBalance,
           'currentWalletBalance': walletBalance,
           'ratePerMinute': ratePerMinute,
           'remainingDurationSeconds': maxDurationSeconds,
-          'budgetUpdatedAt': FieldValue.serverTimestamp(),
+          'budgetUpdatedAt': ServerValue.timestamp,
           'userMuted': false,
           'agentMuted': false,
-        }, SetOptions(merge: true));
+        });
       } catch (e) {
-        debugPrint('Could not save wallet call limit: $e');
+        debugPrint('Could not save wallet call limit in RTDB: $e');
         await _terminateCallAndCleanup(reason: 'wallet_limit_setup_failed');
         _cleanupAndExit('Could not set the call time limit.');
         return;
       }
 
-      _roomSubscription = FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(_roomId)
-          .snapshots()
-          .listen((snapshot) {
-            if (!snapshot.exists) {
+      // 🟢 RTDB Live Listener with Safe Map Casting (`as Map?`)
+      _roomSubscription = FirebaseDatabase.instance
+          .ref('rooms/$_roomId')
+          .onValue
+          .listen((event) {
+            final data = event.snapshot.value as Map?;
+            if (data == null) {
               if (!_isDisconnecting) {
                 _cleanupAndExit("Call ended by agent.");
               }
               return;
             }
 
-            final data = snapshot.data();
-            if (data is! Map) return;
-
-            final status = data!['status']?.toString();
+            final status = data['status']?.toString();
 
             if (status == 'accepted') {
               if (_isCallAccepted || _isDisconnecting) return;
@@ -484,7 +482,7 @@ class _CallRingingScreenState extends State<CallRingingScreen>
             }
           });
     } else {
-      print("Call request failed: ${result['message']}");
+      print("Call request failed: ${result}");
       Get.snackbar(
         'Error',
         result['message'],
@@ -496,7 +494,6 @@ class _CallRingingScreenState extends State<CallRingingScreen>
     }
   }
 
-  // 🟢 Back button dabane par confirmation dialog aur security check
   Future<bool> _onWillPop() async {
     if (_isCallAccepted) return false;
     if (_isDisconnecting) return true;
@@ -542,7 +539,6 @@ class _CallRingingScreenState extends State<CallRingingScreen>
     return false;
   }
 
-  // Red Cut Call button press hone par
   void _cancelCall() async {
     if (_isDisconnecting) return;
 
@@ -599,19 +595,17 @@ class _CallRingingScreenState extends State<CallRingingScreen>
           .toInt();
 
       try {
-        await FirebaseFirestore.instance
-            .collection('rooms')
-            .doc(_roomId!)
-            .update({
-              'status': 'ended',
-              'endedBy': reason,
-              'disconnectedAt': FieldValue.serverTimestamp(),
-              'startTimeMs': startTime.millisecondsSinceEpoch,
-              'endTimeMs': endTime.millisecondsSinceEpoch,
-              'durationInSeconds': durationInSeconds,
-            });
+        // 🟢 RTDB Room status update on termination
+        await FirebaseDatabase.instance.ref('rooms/$_roomId').update({
+          'status': 'ended',
+          'endedBy': reason,
+          'disconnectedAt': ServerValue.timestamp,
+          'startTimeMs': startTime.millisecondsSinceEpoch,
+          'endTimeMs': endTime.millisecondsSinceEpoch,
+          'durationInSeconds': durationInSeconds,
+        });
       } catch (e) {
-        debugPrint("Error updating room on termination: $e");
+        debugPrint("Error updating room on termination in RTDB: $e");
       }
 
       try {
@@ -642,7 +636,6 @@ class _CallRingingScreenState extends State<CallRingingScreen>
     }
   }
 
-  // Triple Dots Animation Widget
   Widget _buildTripleDots() {
     return AnimatedBuilder(
       animation: _dotController,
@@ -688,7 +681,6 @@ class _CallRingingScreenState extends State<CallRingingScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Triple dots animation with waiting status
                 _buildTripleDots(),
                 const SizedBox(height: 80),
                 Opacity(

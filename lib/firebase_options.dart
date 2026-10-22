@@ -41,57 +41,51 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAy1kRfNwoXVUTcEzX32RSl_p_FKSI42xU',
-    appId: '1:560801349976:web:7f67de8358ac901780652d',
-    messagingSenderId: '560801349976',
-    projectId: 'grozar',
-    authDomain: 'grozar.firebaseapp.com',
-    databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
-    storageBucket: 'grozar.firebasestorage.app',
-    measurementId: 'G-CDR95J2FF5',
+    apiKey: 'AIzaSyDBxsLrxOl2MzTyM5REVGZy-vyd7aiRr7Q',
+    appId: '1:482423246573:web:73c5e1e2e002706b8906e4',
+    messagingSenderId: '482423246573',
+    projectId: 'mern-6ee19',
+    authDomain: 'mern-6ee19.firebaseapp.com',
+    databaseURL: 'https://mern-6ee19-default-rtdb.firebaseio.com',
+    storageBucket: 'mern-6ee19.firebasestorage.app',
+    measurementId: 'G-E1T4T3Q60L',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyD6OQebKf57g9RzpRoS25xsA0VBCyfMjJ8',
-    appId: '1:560801349976:android:1f69c7a14eee4a5080652d',
-    messagingSenderId: '560801349976',
-    projectId: 'grozar',
-    databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
-    storageBucket: 'grozar.firebasestorage.app',
+    apiKey: 'AIzaSyA_q1-N5p5Sy5xYgwCZMfDRG1LhiXcqleg',
+    appId: '1:482423246573:android:82f97a3ac8c240928906e4',
+    messagingSenderId: '482423246573',
+    projectId: 'mern-6ee19',
+    databaseURL: 'https://mern-6ee19-default-rtdb.firebaseio.com',
+    storageBucket: 'mern-6ee19.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC-WTMJgEOSFWUCCnco43W9gc2dhVyL9YQ',
-    appId: '1:560801349976:ios:4f4f73c956a9f93080652d',
-    messagingSenderId: '560801349976',
-    projectId: 'grozar',
-    databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
-    storageBucket: 'grozar.firebasestorage.app',
-    iosClientId:
-        '560801349976-obrheu92uv2a0tfidnkn3uu7je079qja.apps.googleusercontent.com',
+    apiKey: 'AIzaSyBnQjeHj44sjc9YUi1zh14dr69TmbljTEw',
+    appId: '1:482423246573:ios:bb10b0b332eed2c68906e4',
+    messagingSenderId: '482423246573',
+    projectId: 'mern-6ee19',
+    databaseURL: 'https://mern-6ee19-default-rtdb.firebaseio.com',
+    storageBucket: 'mern-6ee19.firebasestorage.app',
     iosBundleId: 'com.talk.apk',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC-WTMJgEOSFWUCCnco43W9gc2dhVyL9YQ',
-    appId: '1:560801349976:ios:4f4f73c956a9f93080652d',
-    messagingSenderId: '560801349976',
-    projectId: 'grozar',
-    databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
-    storageBucket: 'grozar.firebasestorage.app',
-    iosClientId:
-        '560801349976-obrheu92uv2a0tfidnkn3uu7je079qja.apps.googleusercontent.com',
+    apiKey: 'AIzaSyBnQjeHj44sjc9YUi1zh14dr69TmbljTEw',
+    appId: '1:482423246573:ios:bb10b0b332eed2c68906e4',
+    messagingSenderId: '482423246573',
+    projectId: 'mern-6ee19',
+    databaseURL: 'https://mern-6ee19-default-rtdb.firebaseio.com',
+    storageBucket: 'mern-6ee19.firebasestorage.app',
     iosBundleId: 'com.talk.apk',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAy1kRfNwoXVUTcEzX32RSl_p_FKSI42xU',
-    appId: '1:560801349976:web:f0322a16427fb1d380652d',
-    messagingSenderId: '560801349976',
-    projectId: 'grozar',
-    authDomain: 'grozar.firebaseapp.com',
-    databaseURL: 'https://grozar-default-rtdb.firebaseio.com',
-    storageBucket: 'grozar.firebasestorage.app',
-    measurementId: 'G-F96H7S5XZG',
+    apiKey: 'AIzaSyDBxsLrxOl2MzTyM5REVGZy-vyd7aiRr7Q',
+    appId: '1:482423246573:web:0ab3d345361de0078906e4',
+    messagingSenderId: '482423246573',
+    projectId: 'mern-6ee19',
+    authDomain: 'mern-6ee19.firebaseapp.com',
+    databaseURL: 'https://mern-6ee19-default-rtdb.firebaseio.com',
+    storageBucket: 'mern-6ee19.firebasestorage.app',
+    measurementId: 'G-V38V3H6Z6E',
   );
 }

@@ -1,5 +1,5 @@
 // ==========================================
-// UserMainFile.dart
+// UserMainFile.dart (Updated)
 // ==========================================
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -36,65 +36,76 @@ class UserMainFile extends StatelessWidget {
           extendBody:
               true, // Allows content to flow smoothly under the floating glass bar
           body: Obx(() => _pages[controller.currentIndex.value]),
-          bottomNavigationBar: Container(
-            margin: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: 10,
-                  sigmaY: 10,
-                ), // High blur for glass effect
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    // True glassmorphism uses lower opacity so background bleeds through
-                    color: isDarkMode
-                        ? Colors.black.withOpacity(0.25)
-                        : Colors.white.withOpacity(0.20),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(isDarkMode ? 0.15 : 0.4),
-                      width: 1.2,
+
+          // 🟢 यहाँ हमने SafeArea का उपयोग किया है
+          bottomNavigationBar: SafeArea(
+            bottom: true, // यह सिर्फ नीचे की तरफ से सेफ एरिया इन्सेट लेगा
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(
+                20,
+                10,
+                20,
+                10,
+              ), // बॉटम मार्जिन को 24 से घटाकर 10 कर दिया है क्योंकि SafeArea खुद नीचे सिस्टम स्पेस मैनेज कर लेगा
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 10,
+                    sigmaY: 10,
+                  ), // High blur for glass effect
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(
-                          isDarkMode ? 0.35 : 0.1,
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? Colors.black.withOpacity(0.25)
+                          : Colors.white.withOpacity(0.20),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(
+                          isDarkMode ? 0.15 : 0.4,
                         ),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        width: 1.2,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildNavItem(
-                        icon: Icons.home_rounded,
-                        label: 'Home',
-                        index: 0,
-                        isActive: controller.currentIndex.value == 0,
-                        inactiveColor: inactiveColor,
-                      ),
-                      _buildNavItem(
-                        icon: Icons.monetization_on,
-                        label: 'Recharge',
-                        index: 1,
-                        isActive: controller.currentIndex.value == 1,
-                        inactiveColor: inactiveColor,
-                      ),
-                      _buildNavItem(
-                        icon: Icons.receipt_long_rounded,
-                        label: 'History',
-                        index: 2,
-                        isActive: controller.currentIndex.value == 2,
-                        inactiveColor: inactiveColor,
-                      ),
-                    ],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(
+                            isDarkMode ? 0.35 : 0.1,
+                          ),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildNavItem(
+                          icon: Icons.home_rounded,
+                          label: 'Home',
+                          index: 0,
+                          isActive: controller.currentIndex.value == 0,
+                          inactiveColor: inactiveColor,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.monetization_on,
+                          label: 'Recharge',
+                          index: 1,
+                          isActive: controller.currentIndex.value == 1,
+                          inactiveColor: inactiveColor,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'History',
+                          index: 2,
+                          isActive: controller.currentIndex.value == 2,
+                          inactiveColor: inactiveColor,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

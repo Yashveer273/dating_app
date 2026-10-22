@@ -7,7 +7,7 @@ import 'package:talk24loves/components/DottedWaveLoader.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 
-import 'package:talk24loves/screens/caling_agent_dashboard/CallingAgentMainFile.dart';
+import 'package:talk24loves/screens/caling_agent_dashboard/AgentMainFile.dart';
 
 import 'package:talk24loves/screens/userSection/UserMainFile.dart';
 

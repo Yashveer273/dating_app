@@ -1,7 +1,7 @@
 // views/caling_agent_dashboard/callreceive/SharedCallController.dart
 
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart'; // 🟢 Firestore ki jagah RTDB import karein
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -49,7 +49,10 @@ class SharedCallController
   Timer? _callTimer;
   DateTime? _acceptedAt;
   bool _isBudgetSyncInProgress = false;
-  StreamSubscription? roomSubscription;
+
+  // 🟢 Firestore StreamSubscription ki jagah RTDB DatabaseEvent subscription use karein
+  StreamSubscription<DatabaseEvent>? roomSubscription;
+
   late final DateTime callStartTime;
   bool isCallEnded = false;
   bool isActionInProgress = false;
@@ -144,7 +147,6 @@ class SharedCallController
     _startCallTimer();
     _listenToRoomUpdates();
 
-    // 🟢 यहाँ रिएक्शन लिसener को सही से इनिशियलाइज किया गया है
     initReactionListener();
 
     if (!kIsWeb) {
@@ -197,12 +199,10 @@ class SharedCallController
       if (callType == 'audio' || callType == 'voice') {
         Helper.setSpeakerphoneOn(true);
         isSpeakerOn = true;
-        debugPrint("🔊 [AUDIO CALL] Speakerphone forced ON for audio call.");
       }
 
       if (callType == 'video' && localStream != null) {
         localRenderer.srcObject = localStream;
-        debugPrint("🟢 [LOCAL STREAM] Video & Audio loaded successfully.");
       }
       onStateUpdated();
     } catch (e) {
@@ -227,7 +227,6 @@ class SharedCallController
     });
 
     _socket!.on('room-joined', (data) async {
-      debugPrint("🏠 Joined room successfully: $data");
       await _startPeerConnectionOnly();
       if (isUserCaller && _peerConnection != null) {
         await _createAndSendOffer();
@@ -235,7 +234,6 @@ class SharedCallController
     });
 
     _socket!.on('user-joined', (data) async {
-      debugPrint("👤 Another user joined room: $data");
       await _startPeerConnectionOnly();
       if (isUserCaller && _peerConnection != null) {
         await _createAndSendOffer();
@@ -270,7 +268,6 @@ class SharedCallController
     });
 
     _socket!.on('user-left', (data) async {
-      debugPrint("👤 User left room: $data");
       safeExit();
     });
   }
@@ -278,11 +275,9 @@ class SharedCallController
   Future<void> flipCamera() async {
     if (callType != 'video' || localStream == null) return;
     try {
-      // 🟢 Flutter WebRTC का इनबिल्ट मेथड जो कैमरे को फ्लिप (Front/Back) करता है
       for (var track in localStream!.getVideoTracks()) {
         await Helper.switchCamera(track);
       }
-      debugPrint("🔄 [CAMERA] Camera flipped successfully.");
       onStateUpdated();
     } catch (e) {
       debugPrint("❌ Error flipping camera: $e");
@@ -303,7 +298,6 @@ class SharedCallController
       _peerConnection = await createPeerConnection(configuration);
 
       _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
-        debugPrint("🔗 [WebRTC CONNECTION STATE]: $state");
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           isLoadingRemoteVideo = false;
           onStateUpdated();
@@ -322,37 +316,17 @@ class SharedCallController
         });
       }
 
-      // 🟢 ऑडियो और वीडियो ट्रैक डीबग लॉग्स के साथ हैंडल किया गया है
       _peerConnection!.onTrack = (RTCTrackEvent event) {
-        debugPrint(
-          "📥 [REMOTE TRACK EVENT] Kind: ${event.track.kind}, Streams count: ${event.streams.length}",
-        );
-
-        if (event.track.kind == 'audio') {
-          debugPrint(
-            "🔊 [AUDIO STREAM DEBUG] Audio track received! ID: ${event.track.id}, Enabled: ${event.track.enabled}, Muted: ${event.track.muted}",
-          );
-        }
-
         if (event.streams.isNotEmpty) {
           remoteStream = event.streams[0];
-
-          // 🟢 महत्वपूर्ण सुधार: जैसे वीडियो में होता है, वैसे ही ऑडियो कॉल में भी
-          // remoteRenderer.srcObject में स्ट्रीम सेट करें ताकि ब्राउज़र और डिवाइस ऑडियो प्ले कर सकें।
           remoteRenderer.srcObject = remoteStream;
 
-          if (callType == 'video') {
-            // वीडियो कॉल के लिए पहले से सेट है
-          } else {
+          if (callType != 'video') {
             for (var track in remoteStream!.getAudioTracks()) {
               track.enabled = true;
-              debugPrint(
-                "🔊 [REMOTE AUDIO] Audio track explicitly enabled and playing. ID: ${track.id}",
-              );
             }
           }
 
-          // 🟢 लोडर को हटाकर UI को तुरंत अपडेट करें (बिल्कुल वीडियो कॉल की तरह)
           isLoadingRemoteVideo = false;
           onStateUpdated();
         }
@@ -446,9 +420,10 @@ class SharedCallController
 
     try {
       final updateField = isUserCaller ? 'userMuted' : 'agentMuted';
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
+      // 🟢 RTDB update syntax
+      await FirebaseDatabase.instance.ref('rooms/$roomId').update({
         updateField: isMuted,
-      }, SetOptions(merge: true));
+      });
     } catch (e) {
       debugPrint("Error updating mute state: $e");
     }
@@ -466,9 +441,10 @@ class SharedCallController
 
     try {
       final updateField = isUserCaller ? 'userCameraOff' : 'agentCameraOff';
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
+      // 🟢 RTDB update syntax
+      await FirebaseDatabase.instance.ref('rooms/$roomId').update({
         updateField: isCameraOff,
-      }, SetOptions(merge: true));
+      });
     } catch (e) {
       debugPrint("Error updating camera state: $e");
     }
@@ -567,10 +543,11 @@ class SharedCallController
     if (!isUserCaller || _isBudgetSyncInProgress || isCallEnded) return;
     _isBudgetSyncInProgress = true;
     try {
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).update({
+      // 🟢 RTDB budget sync update
+      await FirebaseDatabase.instance.ref('rooms/$roomId').update({
         'currentWalletBalance': estimatedWalletBalance,
         'remainingDurationSeconds': remainingCallSeconds,
-        'budgetUpdatedAt': FieldValue.serverTimestamp(),
+        'budgetUpdatedAt': ServerValue.timestamp,
       });
     } catch (e) {
       debugPrint('Error syncing budget: $e');
@@ -580,17 +557,16 @@ class SharedCallController
   }
 
   void _listenToRoomUpdates() {
-    roomSubscription = FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(roomId)
-        .snapshots()
-        .listen((snapshot) {
-          if (!snapshot.exists) {
+    // 🟢 Firestore snapshot ki jagah RTDB onValue listener use kiya gaya hai
+    roomSubscription = FirebaseDatabase.instance
+        .ref('rooms/$roomId')
+        .onValue
+        .listen((event) {
+          final data = event.snapshot.value as Map?;
+          if (data == null) {
             safeExit();
             return;
           }
-          final data = snapshot.data() as Map?;
-          if (data == null) return;
 
           isAgentMuted = data['agentMuted'] == true;
           isUserMuted = data['userMuted'] == true;
@@ -612,10 +588,11 @@ class SharedCallController
     isActionInProgress = true;
     onStateUpdated();
     try {
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
+      // 🟢 RTDB status update on hangup
+      await FirebaseDatabase.instance.ref('rooms/$roomId').update({
         'status': 'ended',
-        'endedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+        'endedAt': ServerValue.timestamp,
+      });
 
       await CallApiService.endCall(
         roomId: roomId,
@@ -640,10 +617,11 @@ class SharedCallController
     isCallEnded = true;
 
     try {
-      await FirebaseFirestore.instance.collection('rooms').doc(roomId).set({
+      // 🟢 RTDB force cleanup update
+      await FirebaseDatabase.instance.ref('rooms/$roomId').update({
         'status': 'ended',
-        'endedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+        'endedAt': ServerValue.timestamp,
+      });
 
       await CallApiService.endCall(
         roomId: roomId,
