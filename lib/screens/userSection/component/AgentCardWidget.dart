@@ -1,7 +1,8 @@
 // ==========================================
-// AgentCardWidget.dart (Updated with Call Support Badges)
+// AgentCardWidget.dart (Complete Final Code)
 // ==========================================
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/userSection/model/AgentListModel.dart';
 
@@ -12,6 +13,7 @@ class AgentCardWidget extends StatelessWidget {
   final Color secondaryText;
   final VoidCallback onCallTap;
   final VoidCallback onCardTap;
+  final VoidCallback onBookmarkTap;
 
   const AgentCardWidget({
     super.key,
@@ -21,6 +23,7 @@ class AgentCardWidget extends StatelessWidget {
     required this.secondaryText,
     required this.onCallTap,
     required this.onCardTap,
+    required this.onBookmarkTap,
   });
 
   @override
@@ -50,7 +53,7 @@ class AgentCardWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Avatar, Name/Location, & Pricing Tag
+            // Top Row: Avatar, Name/Location & Pricing Tag
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -180,7 +183,6 @@ class AgentCardWidget extends StatelessWidget {
                         horizontal: 10,
                         vertical: 6,
                       ),
-
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -208,7 +210,7 @@ class AgentCardWidget extends StatelessWidget {
                   ),
                 const SizedBox(width: 8),
 
-                // 👉 Call Support Indicators (Audio / Video Icons)
+                // Call Support Indicators (Audio / Video Icons)
                 Row(
                   children: [
                     if (agent.isAudioAvailable)
@@ -242,7 +244,7 @@ class AgentCardWidget extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 4),
             Text(
               agent.bio,
               maxLines: 2,
@@ -254,35 +256,71 @@ class AgentCardWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+
+            // Topics, Comma-Separated Category Display & Call Now Button Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: agent.topics.take(2).map((topic) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? AppColors.darkBgMid
-                              : AppColors.lightBgBottom.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          topic,
-                          style: TextStyle(
-                            color: primaryText,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 👉 Displaying Category clearly as string
+                      if (agent.category.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.category_rounded,
+                                size: 12,
+                                color: AppColors.primaryPink,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  agent.category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.primaryPink,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    }).toList(),
+                      SizedBox(height: 4),
+                      // Topics
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: agent.topics.take(2).map((topic) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? AppColors.darkBgMid
+                                  : AppColors.lightBgBottom.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              topic,
+                              style: TextStyle(
+                                color: primaryText,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -316,6 +354,87 @@ class AgentCardWidget extends StatelessWidget {
                 ),
               ],
             ),
+
+            const SizedBox(height: 10),
+            const Divider(height: 1, thickness: 0.5),
+            const SizedBox(height: 8),
+
+            // Clickable Save/Saved Button & Heart Icon
+            Obx(() {
+              final bool saved = agent.isSaved.value;
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      agent.isSaved.toggle();
+                      onBookmarkTap();
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Icon(
+                        saved
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 20,
+                        color: saved ? AppColors.primaryPink : secondaryText,
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        agent.isSaved.toggle();
+                        onBookmarkTap();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: saved ? Colors.grey.shade100 : Colors.black87,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: saved
+                                ? Colors.grey.shade300
+                                : Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              saved
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_outline_rounded,
+                              size: 14,
+                              color: saved ? Colors.black87 : Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              saved ? 'Saved' : 'Save',
+                              style: TextStyle(
+                                color: saved ? Colors.black87 : Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ),

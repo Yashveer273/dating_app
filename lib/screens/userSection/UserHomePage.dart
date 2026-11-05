@@ -1,5 +1,5 @@
 // ==========================================
-// UserHomePage.dart (Updated with Call Type Filter UI)
+// UserHomePage.dart (Updated with Search Bar & "Find Your Match" title)
 // ==========================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,10 +29,18 @@ class _UserHomePageState extends State<UserHomePage> {
   final UserHomeController controller = Get.put(UserHomeController());
   double? _walletBalance;
   final ThemeController themeController = Get.find();
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadWalletBalance();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadWalletBalance() async {
@@ -74,7 +82,6 @@ class _UserHomePageState extends State<UserHomePage> {
                     color: AppColors.primaryPink,
                     onRefresh: () async {
                       final now = DateTime.now();
-                      // यदि पिछले 3 सेकंड के अंदर दोबारा रिफ्रेश करने की कोशिश की गई है
                       if (_lastRefreshTime != null &&
                           now.difference(_lastRefreshTime!) <
                               const Duration(seconds: 3)) {
@@ -88,6 +95,7 @@ class _UserHomePageState extends State<UserHomePage> {
                       }
 
                       _lastRefreshTime = now;
+                      _searchController.clear();
                       await controller.loadHomeDataFromApi();
                       await _loadWalletBalance();
                     },
@@ -97,8 +105,8 @@ class _UserHomePageState extends State<UserHomePage> {
                         _buildPromoBanner(),
                         _buildCategoriesList(isDarkMode, primaryText),
 
-                        // 👉 Experts Header with both Language & Call Type Filters
-                        _buildExpertsHeader(
+                        // 👉 Find Your Match Header & Search Bar
+                        _buildExpertsHeaderWithSearch(
                           context,
                           isDarkMode,
                           primaryText,
@@ -114,11 +122,12 @@ class _UserHomePageState extends State<UserHomePage> {
                                 padding: const EdgeInsets.all(50.0),
                                 child: Center(
                                   child: Text(
-                                    'No experts available matching this filter.',
+                                    'No experts available matching this search or filter.',
                                     style: TextStyle(
                                       color: secondaryText,
                                       fontSize: 13,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ),
@@ -131,12 +140,21 @@ class _UserHomePageState extends State<UserHomePage> {
                               index,
                             ) {
                               final AgentModel agent = list[index];
+                              final identifier = agent.agentId.isNotEmpty
+                                  ? agent.agentId
+                                  : agent.id;
+
+                              // Match ID status from controller storage helper
 
                               return AgentCardWidget(
                                 agent: agent,
                                 isDarkMode: isDarkMode,
                                 primaryText: primaryText,
                                 secondaryText: secondaryText,
+
+                                onBookmarkTap: () {
+                                  controller.toggleSaveAgent(identifier);
+                                },
                                 onCardTap: () {
                                   controller.setPriorityAgent(agent);
                                 },
@@ -208,7 +226,7 @@ class _UserHomePageState extends State<UserHomePage> {
                       size: 14,
                       color: AppColors.primaryPink,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text(
                       '₹ ${_walletBalance != null ? _walletBalance!.toStringAsFixed(2) : 0.0}',
                       style: TextStyle(
@@ -223,12 +241,10 @@ class _UserHomePageState extends State<UserHomePage> {
               const SizedBox(width: 10),
               GestureDetector(
                 onTap: () {
-                  // 🟢 यहाँ अपना प्रोफाइल पेज नेविगेशन लिखें
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          UserProfileScreen(), // अपना प्रोफाइल स्क्रीन विजेट यहाँ पास करें
+                      builder: (context) => UserProfileScreen(),
                     ),
                   );
                 },
@@ -360,7 +376,6 @@ class _UserHomePageState extends State<UserHomePage> {
       child: SizedBox(
         height: 50,
         child: Obx(() {
-          // 👉 Get current selected category ID to force reactive trigger inside builder
           final currentSelectedId = controller.selectedCategory.value.id;
 
           return ListView.builder(
@@ -370,8 +385,6 @@ class _UserHomePageState extends State<UserHomePage> {
             itemCount: controller.categories.length,
             itemBuilder: (context, index) {
               final CategoryModel category = controller.categories[index];
-
-              // 👉 Reactive check based on currentSelectedId
               final bool isSelected = currentSelectedId == category.id;
 
               return Padding(
@@ -431,8 +444,8 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  // Experts Header with Language & Call Type Filters
-  Widget _buildExpertsHeader(
+  // 👉 Find Your Match Header & Search Bar
+  Widget _buildExpertsHeaderWithSearch(
     BuildContext context,
     bool isDarkMode,
     Color primaryText,
@@ -441,103 +454,236 @@ class _UserHomePageState extends State<UserHomePage> {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Featured Experts',
-              style: TextStyle(
-                color: primaryText,
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 👉 Call Type Filter Button
-                GestureDetector(
-                  onTap: () => _showCallTypeFilterSheet(
-                    context,
-                    isDarkMode,
-                    primaryText,
-                    secondaryText,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryPink.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppColors.primaryPink.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(
-                          Icons.video_call_rounded,
-                          size: 14,
-                          color: AppColors.primaryPink,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          'Call Type',
-                          style: TextStyle(
-                            color: AppColors.primaryPink,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      AppColors.pinkGradient.createShader(bounds),
+                  child: const Text(
+                    'Find Your Match',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // Language Filter Button
-                GestureDetector(
-                  onTap: () => _showLanguageFilterSheet(
-                    context,
-                    isDarkMode,
-                    primaryText,
-                    secondaryText,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryPink.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppColors.primaryPink.withOpacity(0.3),
-                        width: 1,
+                Row(
+                  children: [
+                    // Call Type Filter Button
+                    GestureDetector(
+                      onTap: () => _showCallTypeFilterSheet(
+                        context,
+                        isDarkMode,
+                        primaryText,
+                        secondaryText,
                       ),
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(
-                          Icons.filter_list_rounded,
-                          size: 14,
-                          color: AppColors.primaryPink,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
                         ),
-                        SizedBox(width: 4),
-                        Text(
-                          'Language',
-                          style: TextStyle(
-                            color: AppColors.primaryPink,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryPink.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.primaryPink.withOpacity(0.3),
+                            width: 1,
                           ),
                         ),
-                      ],
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.video_call_rounded,
+                              size: 14,
+                              color: AppColors.primaryPink,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Call Type',
+                              style: TextStyle(
+                                color: AppColors.primaryPink,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    // Language Filter Button
+                    GestureDetector(
+                      onTap: () => _showLanguageFilterSheet(
+                        context,
+                        isDarkMode,
+                        primaryText,
+                        secondaryText,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryPink.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.primaryPink.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.filter_list_rounded,
+                              size: 14,
+                              color: AppColors.primaryPink,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Language',
+                              style: TextStyle(
+                                color: AppColors.primaryPink,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            // 👉 ID Search Bar Component
+            // 👉 Row Direction Search Bar & Standalone Pill-Shaped Search Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+              child: Row(
+                children: [
+                  // Input Box (Pill-shaped / Elliptical with generous height)
+                  Expanded(
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? AppColors.darkCard : Colors.white,
+                        borderRadius: BorderRadius.circular(
+                          30,
+                        ), // Pill / Ellipse shape
+                        border: Border.all(
+                          color: AppColors.primaryPink.withOpacity(0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryPink.withOpacity(0.12),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: TextStyle(
+                          color: primaryText,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: InputDecoration(
+                          isDense:
+                              true, // Reduces default internal vertical spacing
+                          hintText: 'Search e.g. @D0F81DEB',
+                          hintStyle: TextStyle(
+                            color: secondaryText.withOpacity(0.6),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          prefixIcon: Padding(
+                            padding: const EdgeInsets.only(left: 16, right: 10),
+                            child: Icon(
+                              Icons.search_rounded,
+                              color: AppColors.primaryPink,
+                              size: 22,
+                            ),
+                          ),
+                          prefixIconConstraints: const BoxConstraints(
+                            minWidth: 0,
+                            minHeight: 0,
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(
+                                    Icons.clear_rounded,
+                                    color: secondaryText,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    controller.searchAgentsById('');
+                                    FocusScope.of(context).unfocus();
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          // Adjust vertical padding so it sits dead-center within your 44px container
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical:
+                                10, // Reduced from 15 to center it vertically
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Standalone Search Button (Row direction, Pill-shaped, Bold text)
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            30,
+                          ), // Pill / Ellipse shape
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      onPressed: () {
+                        controller.searchAgentsById(_searchController.text);
+                        FocusScope.of(context).unfocus();
+                      },
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: AppColors.pinkGradient,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'Search',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -545,7 +691,6 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  // 👉 Call Type Filter Bottom Sheet
   void _showCallTypeFilterSheet(
     BuildContext context,
     bool isDarkMode,
@@ -627,7 +772,6 @@ class _UserHomePageState extends State<UserHomePage> {
     );
   }
 
-  // Language Filter Bottom Sheet
   void _showLanguageFilterSheet(
     BuildContext context,
     bool isDarkMode,

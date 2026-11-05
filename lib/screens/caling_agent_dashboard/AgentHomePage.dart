@@ -57,10 +57,11 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<void> _fetchFinancialDetails() async {
+  Future _fetchFinancialDetails() async {
     await userApiService.fetchAgentFinancialsDetails();
     await userApiService.getJobOnOffStatus();
     agentFinancials.value = AgentFinancialModel.current;
+    return;
   }
 
   String getTotalCallTime(AgentFinancialModel? financials) {
@@ -138,599 +139,611 @@ class _AgentHomePageState extends State with TickerProviderStateMixin {
       return AppBackground(
         isDarkMode: isDarkMode,
         child: SafeArea(
-          child: Column(
-            children: [
-              // Header: Earnings & Call Time Overview
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: borderColor.withOpacity(0.4),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryPink.withOpacity(0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.currency_rupee,
-                            color: AppColors.primaryPink,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Total Earnings',
-                              style: TextStyle(
-                                color: secondaryText,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Obx(
-                              () => Text(
-                                formatAmount(
-                                  agentFinancials.value?.totalEarned,
-                                ),
-                                style: TextStyle(
-                                  color: primaryText,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Call Time',
-                              style: TextStyle(
-                                color: secondaryText,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Obx(
-                              () => Text(
-                                getTotalCallTime(agentFinancials.value),
-                                style: TextStyle(
-                                  color: primaryText,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 15),
-
-                        // Profile Avatar using StatefulWidget safely
-                        (() {
-                          final profile = AgentProfileModel.current;
-                          final avatarUrl = profile?.avatar ?? '';
-
-                          return GestureDetector(
-                            onTap: () async {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AgentProfilePage(),
-                                ),
-                              );
-                              setState(
-                                () {},
-                              ); // Refresh UI when coming back from profile page
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.primaryPink,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 18,
-                                backgroundColor: AppColors.primaryPink
-                                    .withOpacity(0.15),
-                                backgroundImage: avatarUrl.isNotEmpty
-                                    ? NetworkImage(avatarUrl)
-                                    : null,
-                                onBackgroundImageError: avatarUrl.isNotEmpty
-                                    ? (_, __) {}
-                                    : null,
-                                child: avatarUrl.isEmpty
-                                    ? const Icon(
-                                        Icons.person,
-                                        size: 18,
-                                        color: AppColors.primaryPink,
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          );
-                        })(),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content Area
-              Expanded(
-                child: SingleChildScrollView(
+          child: RefreshIndicator(
+            color: AppColors.primaryPink,
+            onRefresh: () async {
+              await _fetchFinancialDetails();
+            },
+            child: Column(
+              children: [
+                // Header: Earnings & Call Time Overview
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
-                    vertical: 20,
+                    vertical: 16,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: borderColor.withOpacity(0.4),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Go Online / Offline Control Block
-                      Obx(() {
-                        final bool online = controller.isOnline.value;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 350),
-                          curve: Curves.easeInOut,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            gradient: online
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF831843),
-                                      Color(0xFF4C0519),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : LinearGradient(
-                                    colors: [cardBg, cardBg],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: online
-                                  ? AppColors.primaryPink.withOpacity(0.8)
-                                  : borderColor,
-                              width: online ? 1.5 : 1,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryPink.withOpacity(0.12),
+                              shape: BoxShape.circle,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: online
-                                    ? AppColors.primaryPink.withOpacity(0.3)
-                                    : Colors.black.withOpacity(0.04),
-                                blurRadius: online ? 18 : 10,
-                                offset: const Offset(0, 6),
+                            child: const Icon(
+                              Icons.currency_rupee,
+                              color: AppColors.primaryPink,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total Earnings',
+                                style: TextStyle(
+                                  color: secondaryText,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Obx(
+                                () => Text(
+                                  formatAmount(
+                                    agentFinancials.value?.totalEarned,
+                                  ),
+                                  style: TextStyle(
+                                    color: primaryText,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          child: Stack(
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              if (online)
-                                Positioned(
-                                  right: 18,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: TweenAnimationBuilder(
-                                      tween: Tween(begin: 0.0, end: 1.0),
-                                      duration: const Duration(
-                                        milliseconds: 1500,
-                                      ),
-                                      curve: Curves.easeOut,
-                                      builder: (context, value, child) {
-                                        return Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            Container(
-                                              width: 26 + (value * 24),
-                                              height: 26 + (value * 24),
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: AppColors.primaryPink
-                                                      .withOpacity(1.0 - value),
-                                                  width: 1.5,
+                              Text(
+                                'Call Time',
+                                style: TextStyle(
+                                  color: secondaryText,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Obx(
+                                () => Text(
+                                  getTotalCallTime(agentFinancials.value),
+                                  style: TextStyle(
+                                    color: primaryText,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 15),
+
+                          // Profile Avatar using StatefulWidget safely
+                          (() {
+                            final profile = AgentProfileModel.current;
+                            final avatarUrl = profile?.avatar ?? '';
+
+                            return GestureDetector(
+                              onTap: () async {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AgentProfilePage(),
+                                  ),
+                                );
+                                setState(
+                                  () {},
+                                ); // Refresh UI when coming back from profile page
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.primaryPink,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: AppColors.primaryPink
+                                      .withOpacity(0.15),
+                                  backgroundImage: avatarUrl.isNotEmpty
+                                      ? NetworkImage(avatarUrl)
+                                      : null,
+                                  onBackgroundImageError: avatarUrl.isNotEmpty
+                                      ? (_, __) {}
+                                      : null,
+                                  child: avatarUrl.isEmpty
+                                      ? const Icon(
+                                          Icons.person,
+                                          size: 18,
+                                          color: AppColors.primaryPink,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            );
+                          })(),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content Area
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Go Online / Offline Control Block
+                        Obx(() {
+                          final bool online = controller.isOnline.value;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeInOut,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: online
+                                  ? const LinearGradient(
+                                      colors: [
+                                        Color(0xFF831843),
+                                        Color(0xFF4C0519),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : LinearGradient(
+                                      colors: [cardBg, cardBg],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: online
+                                    ? AppColors.primaryPink.withOpacity(0.8)
+                                    : borderColor,
+                                width: online ? 1.5 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: online
+                                      ? AppColors.primaryPink.withOpacity(0.3)
+                                      : Colors.black.withOpacity(0.04),
+                                  blurRadius: online ? 18 : 10,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              children: [
+                                if (online)
+                                  Positioned(
+                                    right: 18,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: TweenAnimationBuilder(
+                                        tween: Tween(begin: 0.0, end: 1.0),
+                                        duration: const Duration(
+                                          milliseconds: 1500,
+                                        ),
+                                        curve: Curves.easeOut,
+                                        builder: (context, value, child) {
+                                          return Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Container(
+                                                width: 26 + (value * 24),
+                                                height: 26 + (value * 24),
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: AppColors.primaryPink
+                                                        .withOpacity(
+                                                          1.0 - value,
+                                                        ),
+                                                    width: 1.5,
+                                                  ),
                                                 ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                        onEnd: () {},
+                                      ),
+                                    ),
+                                  ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 18,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: online
+                                              ? Colors.white.withOpacity(0.15)
+                                              : AppColors.primaryPink
+                                                    .withOpacity(0.12),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          online
+                                              ? Icons.headset_mic_rounded
+                                              : Icons
+                                                    .power_settings_new_rounded,
+                                          color: online
+                                              ? Colors.white
+                                              : AppColors.primaryPink,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              online
+                                                  ? 'Status: ONLINE'
+                                                  : 'Status: OFFLINE',
+                                              style: TextStyle(
+                                                color: online
+                                                    ? Colors.white
+                                                    : primaryText,
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              online
+                                                  ? 'Ready for audio/video calls'
+                                                  : 'Go online to start earning',
+                                              style: TextStyle(
+                                                color: online
+                                                    ? Colors.white70
+                                                    : secondaryText,
+                                                fontSize: 11,
                                               ),
                                             ),
                                           ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Obx(() {
+                                        if (controller.isLoading.value) {
+                                          return const SizedBox(
+                                            width: 12,
+                                            height: 12,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: AppColors.primaryPink,
+                                            ),
+                                          );
+                                        }
+
+                                        return Switch.adaptive(
+                                          value: online,
+                                          activeColor: AppColors.primaryPink,
+                                          onChanged: (_) =>
+                                              controller.toggleOnlineStatus(),
                                         );
-                                      },
-                                      onEnd: () {},
-                                    ),
+                                      }),
+                                    ],
                                   ),
                                 ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 18,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: online
-                                            ? Colors.white.withOpacity(0.15)
-                                            : AppColors.primaryPink.withOpacity(
-                                                0.12,
-                                              ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        online
-                                            ? Icons.headset_mic_rounded
-                                            : Icons.power_settings_new_rounded,
-                                        color: online
-                                            ? Colors.white
-                                            : AppColors.primaryPink,
-                                        size: 20,
+                              ],
+                            ),
+                          );
+                        }),
+
+                        const SizedBox(height: 18),
+                        Obx(() {
+                          if (callController.incomingQueue.isEmpty) {
+                            return const SizedBox.shrink(); // अगर कोई कॉल नहीं है तो कुछ नहीं दिखेगा
+                          }
+
+                          // सबसे पहली आने वाली लाइव कॉल को यहाँ फेच किया जा रहा है
+                          final callItem = callController.incomingQueue.first;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 20.0),
+                            child: IncomingCallCard(
+                              call: callItem,
+                              isTopPriority: true,
+                              isDarkMode: isDarkMode,
+                              cardBg: cardBg,
+                              gradientController: _gradientController,
+                              blinkController: _blinkController,
+
+                              // 🟢 एक्सेप्ट करने पर सीधे हैंडलर कॉल होगा
+                              onAccept: () {
+                                CallActionHandler.handleAcceptCall(
+                                  context,
+                                  callItem,
+                                );
+                              },
+
+                              // 🔴 डिक्लेइन/रिजेक्ट करने पर सीधे हैंडलर कॉल होगा
+                              onDelete: () {
+                                CallActionHandler.handleDeclineCall(callItem);
+                              },
+                            ),
+                          );
+                        }),
+                        // Feature Cards Grid (Video/Live/Audio)
+                        SizedBox(
+                          height: 110,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Transform.rotate(
+                                  angle: -0.02,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(18),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          AppColors.primaryPink.withOpacity(
+                                            0.8,
+                                          ),
+                                          AppColors.pinkLight.withOpacity(0.3),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(15),
+                                      child: Stack(
+                                        fit: StackFit.expand,
                                         children: [
-                                          Text(
-                                            online
-                                                ? 'Status: ONLINE'
-                                                : 'Status: OFFLINE',
-                                            style: TextStyle(
-                                              color: online
-                                                  ? Colors.white
-                                                  : primaryText,
-                                              fontSize: 13.5,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                          Image.network(
+                                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
+                                            fit: BoxFit.cover,
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            online
-                                                ? 'Ready for audio/video calls'
-                                                : 'Go online to start earning',
-                                            style: TextStyle(
-                                              color: online
-                                                  ? Colors.white70
-                                                  : secondaryText,
-                                              fontSize: 11,
+                                          const Positioned(
+                                            bottom: 8,
+                                            left: 6,
+                                            right: 6,
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.videocam_rounded,
+                                                  color: AppColors.pinkLight,
+                                                  size: 12,
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'Video Call',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    Obx(() {
-                                      if (controller.isLoading.value) {
-                                        return const SizedBox(
-                                          width: 12,
-                                          height: 12,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.primaryPink,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          AppColors.primaryPink,
+                                          AppColors.pinkLight,
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                    child: const CircleAvatar(
+                                      radius: 36,
+                                      backgroundImage: NetworkImage(
+                                        'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=500&q=80',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 3,
+                                child: Transform.rotate(
+                                  angle: 0.02,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(18),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          AppColors.pinkLight.withOpacity(0.3),
+                                          AppColors.primaryPink.withOpacity(
+                                            0.8,
                                           ),
-                                        );
-                                      }
-
-                                      return Switch.adaptive(
-                                        value: online,
-                                        activeColor: AppColors.primaryPink,
-                                        onChanged: (_) =>
-                                            controller.toggleOnlineStatus(),
-                                      );
-                                    }),
-                                  ],
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(15),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+                                            fit: BoxFit.cover,
+                                          ),
+                                          const Positioned(
+                                            bottom: 8,
+                                            left: 6,
+                                            right: 6,
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.phone,
+                                                  color: AppColors.pinkLight,
+                                                  size: 12,
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'Audio Call',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      }),
+                        ),
 
-                      const SizedBox(height: 18),
-                      Obx(() {
-                        if (callController.incomingQueue.isEmpty) {
-                          return const SizedBox.shrink(); // अगर कोई कॉल नहीं है तो कुछ नहीं दिखेगा
-                        }
+                        const SizedBox(height: 22),
 
-                        // सबसे पहली आने वाली लाइव कॉल को यहाँ फेच किया जा रहा है
-                        final callItem = callController.incomingQueue.first;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 20.0),
-                          child: IncomingCallCard(
-                            call: callItem,
-                            isTopPriority: true,
-                            isDarkMode: isDarkMode,
-                            cardBg: cardBg,
-                            gradientController: _gradientController,
-                            blinkController: _blinkController,
-
-                            // 🟢 एक्सेप्ट करने पर सीधे हैंडलर कॉल होगा
-                            onAccept: () {
-                              CallActionHandler.handleAcceptCall(
-                                context,
-                                callItem,
-                              );
-                            },
-
-                            // 🔴 डिक्लेइन/रिजेक्ट करने पर सीधे हैंडलर कॉल होगा
-                            onDelete: () {
-                              CallActionHandler.handleDeclineCall(callItem);
-                            },
-                          ),
-                        );
-                      }),
-                      // Feature Cards Grid (Video/Live/Audio)
-                      SizedBox(
-                        height: 110,
-                        child: Row(
+                        // Masterclass Section
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              flex: 3,
-                              child: Transform.rotate(
-                                angle: -0.02,
-                                child: Container(
-                                  padding: const EdgeInsets.all(3.5),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppColors.primaryPink.withOpacity(0.8),
-                                        AppColors.pinkLight.withOpacity(0.3),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
+                                    color: AppColors.primaryPink.withOpacity(
+                                      0.12,
                                     ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(15),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.network(
-                                          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
-                                          fit: BoxFit.cover,
-                                        ),
-                                        const Positioned(
-                                          bottom: 8,
-                                          left: 6,
-                                          right: 6,
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.videocam_rounded,
-                                                color: AppColors.pinkLight,
-                                                size: 12,
-                                              ),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Video Call',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10.5,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 2,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(3.5),
-                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppColors.primaryPink,
-                                        AppColors.pinkLight,
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
                                   ),
-                                  child: const CircleAvatar(
-                                    radius: 36,
-                                    backgroundImage: NetworkImage(
-                                      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=500&q=80',
-                                    ),
+                                  child: const Icon(
+                                    Icons.menu_book_rounded,
+                                    color: AppColors.primaryPink,
+                                    size: 14,
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Agent Masterclass Playlist',
+                                  style: TextStyle(
+                                    color: primaryText,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 3,
-                              child: Transform.rotate(
-                                angle: 0.02,
-                                child: Container(
-                                  padding: const EdgeInsets.all(3.5),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppColors.pinkLight.withOpacity(0.3),
-                                        AppColors.primaryPink.withOpacity(0.8),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(15),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.network(
-                                          'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
-                                          fit: BoxFit.cover,
-                                        ),
-                                        const Positioned(
-                                          bottom: 8,
-                                          left: 6,
-                                          right: 6,
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.phone,
-                                                color: AppColors.pinkLight,
-                                                size: 12,
-                                              ),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Audio Call',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10.5,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                            Text(
+                              'View All',
+                              style: TextStyle(
+                                color: AppColors.primaryPink,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 12),
 
-                      const SizedBox(height: 22),
-
-                      // Masterclass Section
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
+                        // Playlist Horizontal List
+                        SizedBox(
+                          height: 195,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryPink.withOpacity(
-                                    0.12,
-                                  ),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.menu_book_rounded,
-                                  color: AppColors.primaryPink,
-                                  size: 14,
-                                ),
+                              _buildPlaylistCard(
+                                context,
+                                cardBg,
+                                borderColor,
+                                primaryText,
+                                secondaryText,
+                                'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
+                                'Mastering Romantic Calls',
+                                '5:20 min • Etiquette & Flow',
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Agent Masterclass Playlist',
-                                style: TextStyle(
-                                  color: primaryText,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              const SizedBox(width: 14),
+                              _buildPlaylistCard(
+                                context,
+                                cardBg,
+                                borderColor,
+                                primaryText,
+                                secondaryText,
+                                'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
+                                'Handling Stress & Deep Talk',
+                                '4:15 min • Empathy Guide',
+                              ),
+                              const SizedBox(width: 14),
+                              _buildPlaylistCard(
+                                context,
+                                cardBg,
+                                borderColor,
+                                primaryText,
+                                secondaryText,
+                                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
+                                'Technical & General Topics',
+                                '3:50 min • Versatility Tips',
                               ),
                             ],
                           ),
-                          Text(
-                            'View All',
-                            style: TextStyle(
-                              color: AppColors.primaryPink,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Playlist Horizontal List
-                      SizedBox(
-                        height: 195,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          children: [
-                            _buildPlaylistCard(
-                              context,
-                              cardBg,
-                              borderColor,
-                              primaryText,
-                              secondaryText,
-                              'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
-                              'Mastering Romantic Calls',
-                              '5:20 min • Etiquette & Flow',
-                            ),
-                            const SizedBox(width: 14),
-                            _buildPlaylistCard(
-                              context,
-                              cardBg,
-                              borderColor,
-                              primaryText,
-                              secondaryText,
-                              'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
-                              'Handling Stress & Deep Talk',
-                              '4:15 min • Empathy Guide',
-                            ),
-                            const SizedBox(width: 14),
-                            _buildPlaylistCard(
-                              context,
-                              cardBg,
-                              borderColor,
-                              primaryText,
-                              secondaryText,
-                              'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
-                              'Technical & General Topics',
-                              '3:50 min • Versatility Tips',
-                            ),
-                          ],
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );

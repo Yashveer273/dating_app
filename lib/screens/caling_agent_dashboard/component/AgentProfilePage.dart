@@ -1,3 +1,6 @@
+// ==========================================
+// AgentProfilePage.dart (Complete Updated UI & Ringtone Toggle)
+// ==========================================
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -90,7 +93,12 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
   bool _isAudioAvailable = true;
   bool _isVideoAvailable = false;
   bool _isSavingCallTypes = false;
+
+  // 🔔 Ringtone Toggle State (Local/Storage controller simulation)
+  bool _isRingtoneEnabled = true;
+
   String bioText = "";
+
   @override
   void initState() {
     super.initState();
@@ -121,7 +129,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
         _initProfileData();
       }
 
-      // Language aur Location API call jisme languages ko list mein convert kiya gaya hai
       final langLocRes = await _userApiService.getAgentLanguageAndLocation();
       if (langLocRes['success'] == true && langLocRes['data'] != null) {
         final data = langLocRes['data'];
@@ -132,7 +139,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
             _parseLocationString(_currentLocation);
           }
 
-          // Languages handling (List form mein assign karna)
           var langs = data['languages'];
           if (langs is List) {
             _selectedLanguages = langs.map((e) => e.toString().trim()).toList();
@@ -152,7 +158,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
         setState(() {
           _isAudioAvailable = callData['isAudioAvailable'] ?? true;
           _isVideoAvailable = callData['isVideoAvailable'] ?? false;
-          bioText = callData["bio"];
+          bioText = callData["bio"] ?? "";
         });
       }
       await _loadCategoryOptions();
@@ -174,53 +180,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       _selectedCity = parts[2];
     } else if (parts.length == 2) {
       _selectedState = parts[1];
-    }
-  }
-
-  Future<void> _handleUpdateCallTypes(bool newAudio, bool newVideo) async {
-    if (!newAudio && !newVideo) {
-      Get.snackbar(
-        'Validation Error',
-        'At least one call type (Audio or Video) must remain enabled.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
-      return;
-    }
-
-    setState(() => _isSavingCallTypes = true);
-
-    final response = await _userApiService.updateAgentCallTypes(
-      isAudioAvailable: newAudio,
-      isVideoAvailable: newVideo,
-    );
-
-    setState(() => _isSavingCallTypes = false);
-
-    if (response['success'] == true) {
-      setState(() {
-        _isAudioAvailable = newAudio;
-        _isVideoAvailable = newVideo;
-      });
-      Get.snackbar(
-        'Success',
-        'Call availability updated successfully',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.black87,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
-    } else {
-      Get.snackbar(
-        'Error',
-        response['message'] ?? 'Failed to update call availability',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
     }
   }
 
@@ -381,7 +340,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     }
   }
 
-  // 🚀 PUT API Call & AgentModel / AgentStorage Update Integration
   Future<void> _handleSaveProfile() async {
     setState(() => _isLoading = true);
 
@@ -408,7 +366,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
     }
 
     try {
-      // Languages ko list/comma separated bhej kar save karna
       final langLocRes = await _userApiService.updateAgentLanguageAndLocation(
         languages: _selectedLanguages,
         location: finalLocation,
@@ -416,10 +373,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
       if (langLocRes['success'] != true && langLocRes['statusCode'] != 200) {
         hasError = true;
       } else {
-        // AgentModel mein update karke AgentStorage mein save karna
         if (agent != null) {
-          // Note: AgentModel ke constructor ya copyWith ke anusaar update karein
-          // Yahan hum local state update kar rahe hain
           setState(() {
             _currentLocation = finalLocation;
             bioText = updatedBio;
@@ -525,7 +479,6 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
             agent?.displayName,
           ]) ??
           'No Name';
-      final agentId = profile?.agentId ?? agent?.agentId;
       final phoneNumber = profile?.phoneNumber ?? agent?.phoneNumber;
 
       return AppBackground(
@@ -542,7 +495,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                 : CustomScrollView(
                     physics: const BouncingScrollPhysics(),
                     slivers: [
-                      // Header Navigation
+                      // Header Navigation (Perfect Alignment)
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -558,7 +511,7 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Text(
-                                  'Profile',
+                                  'Profile & Settings',
                                   style: TextStyle(
                                     color: primaryText,
                                     fontSize: 22,
@@ -609,10 +562,10 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                         ),
                       ),
 
-                      // Profile Info Header Card
+                      // Profile Info Header Card (Properly Aligned & Professional)
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(20),
@@ -623,111 +576,349 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                 color: borderColor.withOpacity(0.7),
                               ),
                             ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                ProfileAvatar(
+                                  avatarUrl: avatarUrl,
+                                  background: isDarkMode
+                                      ? Colors.white.withOpacity(0.06)
+                                      : AppColors.primaryPink.withOpacity(0.07),
+                                  borderColor: borderColor,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_isEditing)
+                                        TextField(
+                                          controller: _nameController,
+                                          style: TextStyle(
+                                            color: primaryText,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: "Enter Name",
+                                            isDense: true,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 8,
+                                                ),
+                                            filled: true,
+                                            fillColor: isDarkMode
+                                                ? Colors.black26
+                                                : Colors.grey.shade100,
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                agentName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: primaryText,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Icon(
+                                              Icons.verified_rounded,
+                                              color: AppColors.primaryPink,
+                                              size: 16,
+                                            ),
+                                          ],
+                                        ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.location_on_outlined,
+                                            size: 13,
+                                            color: secondaryText,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              _currentLocation,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: secondaryText,
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (agentFinancials != null)
+                                        _buildRatingStars(
+                                          agentFinancials!.rating,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ==========================================
+                      // 📊 Account Overview & Call Stats Section (Fixed Layout)
+                      // ==========================================
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: borderColor.withOpacity(0.7),
+                              ),
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    ProfileAvatar(
-                                      avatarUrl: avatarUrl,
-                                      background: isDarkMode
-                                          ? Colors.white.withOpacity(0.06)
-                                          : AppColors.primaryPink.withOpacity(
-                                              0.07,
-                                            ),
-                                      borderColor: borderColor,
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.analytics_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
                                     ),
-                                    const SizedBox(width: 18),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          if (_isEditing)
-                                            TextField(
-                                              controller: _nameController,
-                                              style: TextStyle(
-                                                color: primaryText,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                              decoration: InputDecoration(
-                                                hintText: "Enter Name",
-                                                isDense: true,
-                                                contentPadding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 10,
-                                                    ),
-                                                filled: true,
-                                                fillColor: isDarkMode
-                                                    ? Colors.black26
-                                                    : Colors.grey.shade100,
-                                                border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                  borderSide: BorderSide.none,
-                                                ),
-                                              ),
-                                            )
-                                          else
-                                            Row(
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    agentName,
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      color: primaryText,
-                                                      fontSize: 20,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                const Icon(
-                                                  Icons.verified_rounded,
-                                                  color: AppColors.primaryPink,
-                                                  size: 18,
-                                                ),
-                                              ],
-                                            ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.location_on_outlined,
-                                                size: 14,
-                                                color: secondaryText,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  _currentLocation,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    color: secondaryText,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          if (agentFinancials != null)
-                                            _buildRatingStars(
-                                              agentFinancials!.rating,
-                                            ),
-                                        ],
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Account Overview & Call Stats',
+                                      style: TextStyle(
+                                        color: primaryText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isDarkMode
+                                              ? Colors.black.withOpacity(0.2)
+                                              : Colors.grey.shade100,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: const [
+                                                Icon(
+                                                  Icons.phone_in_talk_rounded,
+                                                  size: 14,
+                                                  color: Colors.green,
+                                                ),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  'Audio Minutes',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              _isAudioAvailable
+                                                  ? 'Active (Enabled)'
+                                                  : 'Disabled',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: _isAudioAvailable
+                                                    ? Colors.green
+                                                    : Colors.redAccent,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isDarkMode
+                                              ? Colors.black.withOpacity(0.2)
+                                              : Colors.grey.shade100,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: const [
+                                                Icon(
+                                                  Icons.videocam_rounded,
+                                                  size: 14,
+                                                  color: Colors.blueAccent,
+                                                ),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  'Video Minutes',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              _isVideoAvailable
+                                                  ? 'Active (Enabled)'
+                                                  : 'Disabled',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: _isVideoAvailable
+                                                    ? Colors.blueAccent
+                                                    : Colors.redAccent,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ==========================================
+                      // 🔔 Ringtone Control Toggle Switch (Radio/Switch Box Style)
+                      // ==========================================
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: borderColor.withOpacity(0.7),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryPink
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.notifications_active_rounded,
+                                        color: AppColors.primaryPink,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Incoming Call Ringtone',
+                                          style: TextStyle(
+                                            color: primaryText,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _isRingtoneEnabled
+                                              ? 'Sound + High Vibration enabled'
+                                              : 'Vibration only (Ringtone Off)',
+                                          style: TextStyle(
+                                            color: secondaryText,
+                                            fontSize: 11.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Switch.adaptive(
+                                  value: _isRingtoneEnabled,
+                                  activeColor: AppColors.primaryPink,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _isRingtoneEnabled = val;
+                                    });
+                                    Get.snackbar(
+                                      'Ringtone Setting',
+                                      val
+                                          ? 'Ringtone enabled for incoming calls'
+                                          : 'Ringtone disabled (Vibration mode active)',
+                                      snackPosition: SnackPosition.BOTTOM,
+                                      backgroundColor: Colors.black87,
+                                      colorText: Colors.white,
+                                      duration: const Duration(seconds: 2),
+                                      margin: const EdgeInsets.all(16),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -843,8 +1034,9 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                               ),
                                             ),
                                             child: Row(
-                                              mainAxisAlignment: MainAxisAlignment
-                                                  .spaceBetween, // 👈 spaceBetween used
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Expanded(
                                                   child: Text(
@@ -899,8 +1091,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                         border: Border.all(color: borderColor),
                                       ),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment
-                                            .spaceBetween, // 👈 spaceBetween used
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
                                             _selectedCity,
@@ -1017,8 +1209,8 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                         border: Border.all(color: borderColor),
                                       ),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment
-                                            .spaceBetween, // 👈 spaceBetween used
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
                                             'Tap to select languages...',
@@ -1353,7 +1545,9 @@ class _AgentProfilePageState extends State<AgentProfilePage> {
                                   )
                                 else
                                   Text(
-                                    bioText,
+                                    bioText.isNotEmpty
+                                        ? bioText
+                                        : 'No bio added yet.',
                                     style: TextStyle(
                                       color: secondaryText,
                                       fontSize: 13,

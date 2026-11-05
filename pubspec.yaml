@@ -44,7 +44,9 @@ dependencies:
   flutter_cashfree_pg_sdk: ^2.4.0+52
   get_storage: ^2.1.1
   flutter_webrtc:
- 
+  device_info_plus:
+  vibration:
+  audioplayers:
   socket_io_client:
   url_launcher: ^6.3.3
 dev_dependencies:

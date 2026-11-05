@@ -536,29 +536,30 @@ class _SharedCallScreenState extends State<SharedCallScreen>
                       ),
                     ],
                     const SizedBox(width: 12),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FloatingActionButton(
-                          heroTag: 'flip_cam_btn_$_roomId',
-                          backgroundColor: AppColors.darkCard,
-                          onPressed: () => _controller.flipCamera(),
-                          child: const Icon(
-                            Icons.flip_camera_ios,
-                            color: Colors.white,
+                    if (_callType == 'video')
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FloatingActionButton(
+                            heroTag: 'flip_cam_btn_$_roomId',
+                            backgroundColor: AppColors.darkCard,
+                            onPressed: () => _controller.flipCamera(),
+                            child: const Icon(
+                              Icons.flip_camera_ios,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          "Flip",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(height: 4),
+                          const Text(
+                            "Flip",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
 
                     const SizedBox(width: 12),
                     Column(

@@ -5,6 +5,10 @@ import 'models/agent_model.dart';
 class AgentStorage {
   static final GetStorage _storage = GetStorage();
 
+  // Storage Keys
+  static const String _keySavedAgentIds = 'saved_agent_ids';
+  static const int maxSavedLimit = 30;
+
   static AgentModel? getAgent() {
     final agentData = _storage.read('agentModel');
 
@@ -27,6 +31,70 @@ class AgentStorage {
   static Future<void> clearAgent() async {
     await _storage.remove('agentModel');
     await _storage.remove('role');
+  }
+
+  // ====================================================================
+  // 🚀 SAVED AGENT IDs STORAGE MANAGEMENT (Max 30 FIFO Queue)
+  // ====================================================================
+
+  /// 1. Clean & Validate single ID format (Strips leading '@', trims spaces)
+  static String? sanitizeAgentId(String? rawId) {
+    if (rawId == null) return null;
+    return rawId.trim().isEmpty ? null : rawId.trim();
+  }
+
+  /// 2. Get list of all saved Agent IDs (Returns exact List<String> format)
+  static List<String> getSavedAgentIds() {
+    final rawList = _storage.read<List>(_keySavedAgentIds);
+    print("Retrieved saved agent IDs from storage: $rawList");
+    if (rawList == null || rawList.isEmpty) {
+      return [];
+    }
+
+    // Sanitize and return unique valid IDs list
+    final List<String> validIds = [];
+    for (var item in rawList) {
+      final clean = sanitizeAgentId(item?.toString());
+      if (clean != null && !validIds.contains(clean)) {
+        validIds.add(clean);
+      }
+    }
+    return validIds;
+  }
+
+  /// 3. Toggle / Add / Remove Agent ID with 30 items FIFO Queue limit
+  static Future<List<String>> toggleSaveAgentId(String agentId) async {
+    final cleanId = sanitizeAgentId(agentId);
+    if (cleanId == null) return getSavedAgentIds();
+
+    List<String> currentIds = getSavedAgentIds();
+
+    if (currentIds.contains(cleanId)) {
+      // Remove if already exists
+      currentIds.remove(cleanId);
+    } else {
+      // Add new ID
+      currentIds.add(cleanId);
+      // 🔥 Limit Management: If count > 30, remove oldest from the start (FIFO)
+      while (currentIds.length > maxSavedLimit) {
+        currentIds.removeAt(0);
+      }
+    }
+
+    await _storage.write(_keySavedAgentIds, currentIds);
+    return currentIds;
+  }
+
+  /// 4. Check if an Agent ID is bookmarked
+  static bool isAgentSaved(String agentId) {
+    final cleanId = sanitizeAgentId(agentId);
+    if (cleanId == null) return false;
+    return getSavedAgentIds().contains(cleanId);
+  }
+
+  /// 5. Clear all Saved Agent IDs
+  static Future<void> clearSavedAgentIds() async {
+    await _storage.remove(_keySavedAgentIds);
   }
 
   /// 🔥 100% Complete App Clean: Erases GetStorage data + Image/Temp Cache

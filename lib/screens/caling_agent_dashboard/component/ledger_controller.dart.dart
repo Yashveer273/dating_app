@@ -34,7 +34,6 @@ class LedgerController extends GetxController {
   RxBool isAscendingSort =
       false.obs; // false = Newest first, true = Oldest first
   final Rxn selectedFilterDate = Rxn();
-  final AgentFinancialModel? agentFinancials = AgentFinancialModel.current;
 
   DateTime? get selectedFilterDateValue {
     final value = selectedFilterDate.value;
@@ -48,19 +47,23 @@ class LedgerController extends GetxController {
 
   Future fetchAgentEarningsFromServer() async {
     try {
-      walletBalance.value = _numberValue(agentFinancials!.walletBalance);
-      totalEarned.value = _numberValue(agentFinancials!.totalEarned);
+      walletBalance.value = _numberValue(
+        AgentFinancialModel.current!.walletBalance,
+      );
+      totalEarned.value = _numberValue(
+        AgentFinancialModel.current!.totalEarned,
+      );
       audioCallDurationSeconds.value = _numberValue(
-        agentFinancials!.audioCallDurationSeconds,
+        AgentFinancialModel.current!.audioCallDurationSeconds,
       ).round();
       audioCallEarnings.value = _numberValue(
-        agentFinancials!.audioCallEarnings,
+        AgentFinancialModel.current!.audioCallEarnings,
       );
       videoCallDurationSeconds.value = _numberValue(
-        agentFinancials!.videoCallDurationSeconds,
+        AgentFinancialModel.current!.videoCallDurationSeconds,
       ).round();
       videoCallEarnings.value = _numberValue(
-        agentFinancials!.videoCallEarnings,
+        AgentFinancialModel.current!.videoCallEarnings,
       );
 
       pendingAudioTalkTime.value = formatCallDuration(
@@ -155,8 +158,9 @@ class LedgerController extends GetxController {
     selectedFilterDate.value = null;
   }
 
-  double get pendingIncome =>
-      agentFinancials != null ? agentFinancials!.walletBalance : 0;
+  double get pendingIncome => AgentFinancialModel.current != null
+      ? AgentFinancialModel.current!.walletBalance
+      : 0;
   bool get canWithdraw => pendingIncome >= minimumWithdrawalLimit;
   void saveBankDetails({
     required String accountNumber,

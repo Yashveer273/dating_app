@@ -18,21 +18,18 @@ class AgentFinancialModel {
   });
 
   static AgentFinancialModel? current;
-
   factory AgentFinancialModel.fromJson(Map<String, dynamic> json) {
-    final model = AgentFinancialModel(
+    return current = AgentFinancialModel(
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0.0,
       totalEarned: (json['totalEarned'] as num?)?.toDouble() ?? 0.0,
-      audioCallDurationSeconds: json['audioCallDurationSeconds'],
+      audioCallDurationSeconds:
+          (json['audioCallDurationSeconds'] as num?)?.toDouble() ?? 0.0,
       audioCallEarnings: (json['audioCallEarnings'] as num?)?.toDouble() ?? 0.0,
-      videoCallDurationSeconds: json['videoCallDurationSeconds'],
+      videoCallDurationSeconds:
+          (json['videoCallDurationSeconds'] as num?)?.toDouble() ?? 0.0,
       videoCallEarnings: (json['videoCallEarnings'] as num?)?.toDouble() ?? 0.0,
     );
-
-    current = model;
-
-    return model;
   }
 
   Map<String, dynamic> toJson() {

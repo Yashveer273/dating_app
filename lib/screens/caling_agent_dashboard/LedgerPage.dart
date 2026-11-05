@@ -34,6 +34,7 @@ class _LedgerPageState extends State {
 
   Future<void> _fetchFinancialDetails() async {
     await userApiService.fetchAgentFinancialsDetails();
+
     controller.fetchAgentEarningsFromServer();
   }
 
@@ -94,6 +95,7 @@ class _LedgerPageState extends State {
                               ),
                             ),
                             const SizedBox(height: 2),
+
                             Text(
                               'Manage your earnings.',
                               style: TextStyle(

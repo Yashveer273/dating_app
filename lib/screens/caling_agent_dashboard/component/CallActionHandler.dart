@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:talk24loves/Api/UserApiService.dart';
 import 'package:talk24loves/Api/call_api_service.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/CallAgentController.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/callreceive/call_item_models.dart';
@@ -34,8 +35,9 @@ class CallActionHandler {
   // 🔴 कॉल डिक्लाइन/रिजेक्ट करने का मेथड
   static Future handleDeclineCall(IncomingCallItemModel call) async {
     final CallAgentController controller = Get.find();
-
+    final UserApiService userApiService = Get.find();
     await controller.declineCall(call.id);
     controller.fetchAndLoadCallHistory();
+    await userApiService.fetchAgentFinancialsDetails();
   }
 }

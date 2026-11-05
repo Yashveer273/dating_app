@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:talk24loves/Api/call_api_service.dart';
 import 'package:talk24loves/Api/AppConfig.dart';
+import 'package:talk24loves/components/AgentStatusManager.dart';
 
 // मॉड्यूलर हैंडल्स इम्पोर्ट करें
 import 'CallAudioHandler.dart';
@@ -561,7 +562,7 @@ class SharedCallController
     roomSubscription = FirebaseDatabase.instance
         .ref('rooms/$roomId')
         .onValue
-        .listen((event) {
+        .listen((event) async {
           final data = event.snapshot.value as Map?;
           if (data == null) {
             safeExit();
@@ -643,7 +644,7 @@ class SharedCallController
     if (_isExiting) return;
     _isExiting = true;
     isCallEnded = true;
-
+    AgentStatusManager.isAgentBusy.value = false;
     WidgetsBinding.instance.removeObserver(this);
     _callTimer?.cancel();
     roomSubscription?.cancel();

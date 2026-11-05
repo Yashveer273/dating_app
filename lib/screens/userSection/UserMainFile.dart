@@ -1,6 +1,3 @@
-// ==========================================
-// UserMainFile.dart (Updated)
-// ==========================================
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,6 +5,7 @@ import 'package:talk24loves/app_theme_controller.dart';
 import 'package:talk24loves/components/app_background.dart';
 import 'package:talk24loves/components/app_colors.dart';
 import 'package:talk24loves/screens/userSection/UserHomePage.dart';
+import 'package:talk24loves/screens/userSection/SavedAgentsPage.dart';
 import 'package:talk24loves/screens/userSection/call_history_page.dart';
 import 'package:talk24loves/screens/userSection/component/UserMainController.dart';
 import 'package:talk24loves/screens/userSection/component/wallet_screen.dart';
@@ -18,8 +16,12 @@ class UserMainFile extends StatelessWidget {
   final UserMainController controller = Get.put(UserMainController());
   final ThemeController themeController = Get.find();
 
-  // The 3 exact end-user screens: Home, Recharge, and History
-  final List _pages = [UserHomePage(), WalletScreen(), CallHistoryPage()];
+  final List _pages = [
+    UserHomePage(),
+    SavedAgentsPage(),
+    WalletScreen(),
+    CallHistoryPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -33,27 +35,16 @@ class UserMainFile extends StatelessWidget {
         isDarkMode: isDarkMode,
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          extendBody:
-              true, // Allows content to flow smoothly under the floating glass bar
+          extendBody: true,
           body: Obx(() => _pages[controller.currentIndex.value]),
-
-          // 🟢 यहाँ हमने SafeArea का उपयोग किया है
           bottomNavigationBar: SafeArea(
-            bottom: true, // यह सिर्फ नीचे की तरफ से सेफ एरिया इन्सेट लेगा
+            bottom: true,
             child: Container(
-              margin: const EdgeInsets.fromLTRB(
-                20,
-                10,
-                20,
-                10,
-              ), // बॉटम मार्जिन को 24 से घटाकर 10 कर दिया है क्योंकि SafeArea खुद नीचे सिस्टम स्पेस मैनेज कर लेगा
+              margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(30),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: 10,
-                    sigmaY: 10,
-                  ), // High blur for glass effect
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -91,17 +82,24 @@ class UserMainFile extends StatelessWidget {
                           inactiveColor: inactiveColor,
                         ),
                         _buildNavItem(
-                          icon: Icons.monetization_on,
-                          label: 'Recharge',
+                          icon: Icons.favorite_rounded,
+                          label: 'Saved',
                           index: 1,
                           isActive: controller.currentIndex.value == 1,
                           inactiveColor: inactiveColor,
                         ),
                         _buildNavItem(
-                          icon: Icons.receipt_long_rounded,
-                          label: 'History',
+                          icon: Icons.monetization_on,
+                          label: 'Recharge',
                           index: 2,
                           isActive: controller.currentIndex.value == 2,
+                          inactiveColor: inactiveColor,
+                        ),
+                        _buildNavItem(
+                          icon: Icons.receipt_long_rounded,
+                          label: 'History',
+                          index: 3,
+                          isActive: controller.currentIndex.value == 3,
                           inactiveColor: inactiveColor,
                         ),
                       ],
@@ -144,7 +142,7 @@ class UserMainFile extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 26,
+              size: 24,
               color: isActive ? AppColors.primaryPink : inactiveColor,
             ),
             if (isActive) ...[

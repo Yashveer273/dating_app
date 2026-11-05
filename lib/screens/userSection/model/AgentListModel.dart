@@ -1,6 +1,8 @@
 // ==========================================
 // AgentModel.dart (Updated with Call Fields)
 // ==========================================
+import 'package:get/get.dart';
+
 class AgentModel {
   final String id, agentId; // Unique identifier for the agent
 
@@ -15,7 +17,7 @@ class AgentModel {
   final bool isOnline;
   final bool isAudioAvailable; // 👉 New Field for Audio Call support
   final bool isVideoAvailable; // 👉 New Field for Video Call support
-
+  late final RxBool isSaved;
   AgentModel({
     required this.id,
     required this.agentId,
@@ -30,13 +32,14 @@ class AgentModel {
     required this.isOnline,
     this.isAudioAvailable = true,
     this.isVideoAvailable = true,
-  });
+    bool isSaved = false,
+  }) : isSaved = isSaved.obs;
 
   // A static current agent instance for active reference
   static AgentModel? current;
 
   // Factory constructor for backend JSON parsing
-  factory AgentModel.fromJson(Map json) {
+  factory AgentModel.fromJson(Map json, {bool isSaved = false}) {
     return AgentModel(
       id: json['_id'] ?? json['id'] ?? '',
       agentId: json['agentId'] ?? '',
@@ -51,6 +54,7 @@ class AgentModel {
       isOnline: json['isOnline'] ?? true,
       isAudioAvailable: json['isAudioAvailable'] ?? true,
       isVideoAvailable: json['isVideoAvailable'] ?? true,
+      isSaved: isSaved,
     );
   }
 

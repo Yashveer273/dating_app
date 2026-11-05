@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:get/get.dart';
 import 'package:talk24loves/Api/AppConfig.dart';
 import 'package:talk24loves/screens/caling_agent_dashboard/component/models/AgentFinancialModel.dart';
@@ -35,6 +38,46 @@ class UserApiService extends GetConnect {
       return null;
     } catch (e) {
       print("Error fetching home data: $e");
+      return null;
+    }
+  }
+
+  Future<dynamic> fetchagentbyid(String id) async {
+    try {
+      final response = await get('$_userEndpoint/agentAppHome?id=$id');
+      print("Home API failed: ${response.statusCode}, ${response.body}");
+      if (response.statusCode == 200 &&
+          response.body is Map &&
+          response.body['status'] == true) {
+        return response.body;
+      }
+
+      return null;
+    } catch (e) {
+      print("Error fetching home data: $e");
+      return null;
+    }
+  }
+
+  // 👉 API to fetch bookmarked/saved agents by sending a list of IDs
+  Future<dynamic> fetchMySavedAgents(List<String> agentIds) async {
+    try {
+      // Body payload as per your API reference
+      final body = {'agentIds': agentIds};
+
+      final response = await post('$_userEndpoint/get-my-saved-agents', body);
+
+      print(
+        "Saved Agents API Response: ${response.statusCode}, ${response.body}",
+      );
+
+      if (response.statusCode == 200 && response.body is Map) {
+        return response.body;
+      }
+
+      return null;
+    } catch (e) {
+      print("Error fetching saved agents: $e");
       return null;
     }
   }
@@ -970,6 +1013,73 @@ class UserApiService extends GetConnect {
       };
     } catch (e) {
       print('Error updating language and location: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateFCM({required String fcmToken}) async {
+    // 🔥 1. Strict Validation: FCM Token mandatory hai
+    if (fcmToken.trim().isEmpty) {
+      print("❌ Validation Error: FCM Token is mandatory.");
+      return {'success': false, 'message': 'FCM Token is a required field.'};
+    }
+
+    // 🔥 2. Function ke andar hi Device ID generate/fetch karo
+    String deviceId = "";
+    try {
+      final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        deviceId = androidInfo.id; // Unique Android device ID
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+        deviceId = iosInfo.identifierForVendor ?? ""; // Unique iOS device ID
+      }
+    } catch (e) {
+      print("❌ Error fetching device ID: $e");
+    }
+
+    // Device ID bhi mandatory check kar lo
+    if (deviceId.trim().isEmpty) {
+      return {'success': false, 'message': 'Failed to generate Device ID.'};
+    }
+
+    // 3. Role ke basis par dynamic ID uthao
+    String userType = UserStorage.role.value;
+    String targetId = "";
+
+    if (userType.toLowerCase() == "agent") {
+      targetId = AppConfig.agent?.id ?? "";
+    } else {
+      targetId = AppConfig.user?.id ?? "";
+    }
+
+    try {
+      // 4. API Call
+      final response = await post(
+        '${AppConfig.rootBaseUrl}/api/deviceToken/save-token?userId=$targetId',
+        {
+          'userId': targetId,
+          'userType': userType,
+          'deviceId': deviceId,
+          'fcmToken': fcmToken,
+        },
+        headers: _agentHeaders(),
+      );
+
+      print("Update FCM Response: ${response.body}");
+
+      if (response.body is Map) {
+        return Map<String, dynamic>.from(response.body);
+      }
+
+      return {
+        'success': false,
+        'message': 'Invalid server response',
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('Error updating FCM token: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
